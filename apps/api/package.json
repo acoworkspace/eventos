@@ -2,6 +2,7 @@
   "name": "@eventos-aco/api",
   "version": "1.0.0",
   "private": true,
+  "description": "Backend de gestión de ingresos y costos de eventos - ACO",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
