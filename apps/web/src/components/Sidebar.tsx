@@ -3,9 +3,10 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { CalendarDays, Users, Truck, LogOut } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Users, Truck, LogOut } from 'lucide-react'
 
 const NAV_ITEMS = [
+  { href: '/cashflow', label: 'Cash Flow', icon: LayoutDashboard },
   { href: '/eventos', label: 'Eventos', icon: CalendarDays },
   { href: '/clientes', label: 'Clientes', icon: Users },
   { href: '/proveedores', label: 'Proveedores', icon: Truck },

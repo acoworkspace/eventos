@@ -48,6 +48,14 @@ export interface EventLine {
   retention_url: string | null
 }
 
+export interface EventSummaryLine {
+  kind: LineKind
+  category_label: string
+  neto: number
+  impuestos: number
+  total: number
+}
+
 export interface EventSummary {
   id: string
   client_id: string | null
@@ -55,6 +63,7 @@ export interface EventSummary {
   event_date: string
   location: string | null
   exchange_rate: number | null
+  lines: EventSummaryLine[]
   ingresos: number
   gastos: number
   resultado: number

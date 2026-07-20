@@ -8,38 +8,48 @@ import { EventSummary } from '@/types'
 import { formatARS, formatDate } from '@/lib/format'
 import { ClientSelect } from '@/components/ClientSelect'
 import { LocationPicker } from '@/components/LocationPicker'
-import { Plus, Loader2 } from 'lucide-react'
+import { Plus, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ]
 
+function currentMonthKey() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+function shiftMonth(key: string, delta: number) {
+  const [y, m] = key.split('-').map(Number)
+  const date = new Date(y, m - 1 + delta, 1)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
 export default function EventosPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const [showNewModal, setShowNewModal] = useState(false)
+  const [month, setMonth] = useState(currentMonthKey)
 
   const { data: events, isLoading } = useQuery({
     queryKey: ['events'],
     queryFn: async () => (await api.get<EventSummary[]>('/api/events')).data,
   })
 
-  const monthlyTotals = useMemo(() => {
-    const byMonth = new Map<string, { label: string; ingresos: number; gastos: number }>()
-    for (const ev of events ?? []) {
-      const [y, m] = ev.event_date.split('-')
-      const key = `${y}-${m}`
-      const label = `${MONTH_NAMES[Number(m) - 1]} ${y}`
-      const entry = byMonth.get(key) ?? { label, ingresos: 0, gastos: 0 }
-      entry.ingresos += ev.ingresos
-      entry.gastos += ev.gastos
-      byMonth.set(key, entry)
-    }
-    return Array.from(byMonth.entries())
-      .sort((a, b) => b[0].localeCompare(a[0]))
-      .map(([key, v]) => ({ key, ...v, neto: v.ingresos - v.gastos }))
-  }, [events])
+  const [year, monthNum] = month.split('-').map(Number)
+  const monthLabel = `${MONTH_NAMES[monthNum - 1]} ${year}`
+
+  const monthEvents = useMemo(
+    () => (events ?? []).filter(ev => ev.event_date.startsWith(month)),
+    [events, month]
+  )
+
+  const monthTotals = useMemo(() => {
+    const ingresos = monthEvents.reduce((s, ev) => s + ev.ingresos, 0)
+    const gastos = monthEvents.reduce((s, ev) => s + ev.gastos, 0)
+    return { ingresos, gastos, neto: ingresos - gastos }
+  }, [monthEvents])
 
   const createMutation = useMutation({
     mutationFn: (payload: { client_id: string; event_date: string; location: string; exchange_rate: string }) =>
@@ -69,20 +79,28 @@ export default function EventosPage() {
           </button>
         </div>
 
-        {monthlyTotals.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-            {monthlyTotals.map(m => (
-              <div key={m.key} className="bg-white rounded-xl border border-gray-200 px-4 py-3">
-                <p className="text-xs font-medium text-gray-500 mb-2">{m.label}</p>
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between"><span className="text-gray-500">Ingresos</span><span className="font-medium text-gray-800">{formatARS(m.ingresos)}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Costos</span><span className="font-medium text-gray-800">{formatARS(m.gastos)}</span></div>
-                  <div className="flex justify-between border-t border-gray-100 pt-1"><span className="text-gray-500">Neto</span><span className={`font-semibold ${m.neto >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatARS(m.neto)}</span></div>
-                </div>
-              </div>
-            ))}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <button onClick={() => setMonth(m => shiftMonth(m, -1))} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <h2 className="text-sm font-semibold text-gray-800 w-40 text-center capitalize">{monthLabel}</h2>
+            <button onClick={() => setMonth(m => shiftMonth(m, 1))} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
-        )}
+          {month !== currentMonthKey() && (
+            <button onClick={() => setMonth(currentMonthKey())} className="text-xs text-blue-600 hover:underline">Volver al mes actual</button>
+          )}
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 px-4 py-3 mb-6 max-w-sm">
+          <div className="space-y-1 text-sm">
+            <div className="flex justify-between"><span className="text-gray-500">Ingresos</span><span className="font-medium text-gray-800">{formatARS(monthTotals.ingresos)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Costos</span><span className="font-medium text-gray-800">{formatARS(monthTotals.gastos)}</span></div>
+            <div className="flex justify-between border-t border-gray-100 pt-1"><span className="text-gray-500">Neto</span><span className={`font-semibold ${monthTotals.neto >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatARS(monthTotals.neto)}</span></div>
+          </div>
+        </div>
 
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
@@ -98,10 +116,10 @@ export default function EventosPage() {
               {isLoading && (
                 <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">Cargando...</td></tr>
               )}
-              {!isLoading && events?.length === 0 && (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">Todavía no hay eventos cargados.</td></tr>
+              {!isLoading && monthEvents.length === 0 && (
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">No hay eventos en {monthLabel}.</td></tr>
               )}
-              {events?.map(ev => (
+              {monthEvents.map(ev => (
                 <tr
                   key={ev.id}
                   onClick={() => router.push(`/eventos/${ev.id}`)}

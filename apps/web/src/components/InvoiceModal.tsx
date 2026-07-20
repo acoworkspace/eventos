@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import api from '@/lib/api'
 import { EventLine, ParsedInvoice } from '@/types'
+import { formatARS } from '@/lib/format'
 import { Loader2, UploadCloud } from 'lucide-react'
 
 export function InvoiceModal({
@@ -97,9 +98,9 @@ export function InvoiceModal({
             <Field label="Fecha" value={parsed.issue_date} />
             <Field label="Cliente" value={parsed.client_name} />
             <Field label="CUIT" value={parsed.client_cuit} />
-            <Field label="Neto" value={parsed.base_amount != null ? `$ ${parsed.base_amount}` : null} />
-            <Field label="Impuestos" value={parsed.iva_amount != null ? `$ ${parsed.iva_amount}` : null} />
-            <Field label="Total" value={parsed.total_amount != null ? `$ ${parsed.total_amount}` : null} />
+            <Field label="Neto" value={parsed.base_amount != null ? formatARS(parsed.base_amount) : null} />
+            <Field label="Impuestos" value={parsed.iva_amount != null ? formatARS(parsed.iva_amount) : null} />
+            <Field label="Total" value={parsed.total_amount != null ? formatARS(parsed.total_amount) : null} />
             <Field label="Moneda" value={parsed.currency} />
           </div>
         )}

@@ -35,7 +35,28 @@ export default function EventDetailPage() {
   const updateLineMutation = useMutation({
     mutationFn: ({ lineId, data }: { lineId: string; data: Record<string, unknown> }) =>
       api.put(`/api/event-lines/${lineId}`, data),
-    onSuccess: invalidate,
+    onMutate: async ({ lineId, data }) => {
+      await queryClient.cancelQueries({ queryKey: ['event', id] })
+      const previous = queryClient.getQueryData<EventDetail>(['event', id])
+      queryClient.setQueryData<EventDetail>(['event', id], (old) => {
+        if (!old) return old
+        return {
+          ...old,
+          event_lines: old.event_lines.map(l => {
+            if (l.id !== lineId) return l
+            const updated = { ...l, ...data } as EventLine
+            const neto = 'neto' in data ? Number(data.neto) : l.neto
+            const impuestos = 'impuestos' in data ? Number(data.impuestos) : l.impuestos
+            return { ...updated, total: neto + impuestos }
+          }),
+        }
+      })
+      return { previous }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(['event', id], context.previous)
+    },
+    onSettled: invalidate,
   })
 
   const statusMutation = useMutation({
@@ -52,7 +73,16 @@ export default function EventDetailPage() {
 
   const updateEventMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) => api.put(`/api/events/${id}`, { ...event, ...data }),
-    onSuccess: invalidate,
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ['event', id] })
+      const previous = queryClient.getQueryData<EventDetail>(['event', id])
+      queryClient.setQueryData<EventDetail>(['event', id], (old) => old ? { ...old, ...data } : old)
+      return { previous }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(['event', id], context.previous)
+    },
+    onSettled: invalidate,
   })
 
   const addLineMutation = useMutation({
@@ -253,8 +283,8 @@ function LinesTable({
           <tr className="border-t border-gray-200 font-medium text-gray-800">
             <td className="px-4 py-2" colSpan={kind === 'gasto' ? 3 : 2}>Subtotal</td>
             <td></td>
-            <td className="px-4 py-2 text-right">{formatARS(total)}</td>
-            <td className="px-4 py-2 text-right text-gray-500 text-xs">{exchangeRate ? formatUSD(total / exchangeRate) : '—'}</td>
+            <td className="px-4 py-2 text-right whitespace-nowrap">{formatARS(total)}</td>
+            <td className="px-4 py-2 text-right whitespace-nowrap text-gray-500 text-xs">{exchangeRate ? formatUSD(total / exchangeRate) : '—'}</td>
             <td colSpan={3}></td>
           </tr>
         </tfoot>
@@ -305,8 +335,8 @@ function LineRow({
           className="w-full px-2 py-1 text-right text-sm border border-transparent hover:border-gray-200 focus:border-blue-400 rounded focus:outline-none"
         />
       </td>
-      <td className="px-4 py-2 text-right font-medium text-gray-800">{formatARS(line.total)}</td>
-      <td className="px-4 py-2 text-right text-gray-500 text-xs">{usd != null ? formatUSD(usd) : '—'}</td>
+      <td className="px-4 py-2 text-right whitespace-nowrap font-medium text-gray-800">{formatARS(line.total)}</td>
+      <td className="px-4 py-2 text-right whitespace-nowrap text-gray-500 text-xs">{usd != null ? formatUSD(usd) : '—'}</td>
       <td className="px-4 py-2 text-center">
         {line.has_invoice ? (
           <button

@@ -6,18 +6,19 @@ const router = Router()
 router.get('/', async (_req, res) => {
   const { data, error } = await supabase
     .from('events')
-    .select('*, client:clients(id,name), event_lines(kind, neto, impuestos, total)')
+    .select('*, client:clients(id,name), event_lines(kind, category_label, neto, impuestos, total)')
     .order('event_date', { ascending: false })
 
   if (error) return res.status(500).json({ error: error.message })
 
-  // Compute a quick summary (ingresos - gastos) per event for the list view
+  // Compute a quick summary (ingresos - gastos) per event for the list view;
+  // keep slim per-line data too, for the cash flow breakdown by category
   const withResult = (data ?? []).map(ev => {
     const lines = (ev as any).event_lines ?? []
     const ingresos = lines.filter((l: any) => l.kind === 'ingreso').reduce((s: number, l: any) => s + Number(l.total), 0)
     const gastos = lines.filter((l: any) => l.kind === 'gasto').reduce((s: number, l: any) => s + Number(l.total), 0)
     const { event_lines, ...rest } = ev as any
-    return { ...rest, ingresos, gastos, resultado: ingresos - gastos }
+    return { ...rest, lines, ingresos, gastos, resultado: ingresos - gastos }
   })
 
   res.json(withResult)
