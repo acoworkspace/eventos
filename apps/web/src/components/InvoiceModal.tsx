@@ -18,6 +18,8 @@ export function InvoiceModal({
     invoice_client_cuit: string | null
     invoice_currency: string | null
     invoice_exchange_rate: number | null
+    neto: number | null
+    impuestos: number | null
   }) => void
   loading: boolean
 }) {
@@ -58,6 +60,8 @@ export function InvoiceModal({
       invoice_client_cuit: parsed.client_cuit,
       invoice_currency: parsed.currency,
       invoice_exchange_rate: parsed.exchange_rate,
+      neto: parsed.base_amount,
+      impuestos: parsed.iva_amount,
     })
   }
 

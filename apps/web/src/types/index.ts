@@ -5,6 +5,17 @@ export interface Provider {
   id: string
   name: string
   cuit: string | null
+  email: string | null
+  phone: string | null
+}
+
+export interface Client {
+  id: string
+  name: string
+  cuit: string | null
+  email: string | null
+  phone: string | null
+  notes: string | null
 }
 
 export interface EventLine {
@@ -39,7 +50,8 @@ export interface EventLine {
 
 export interface EventSummary {
   id: string
-  client_name: string
+  client_id: string | null
+  client: { id: string; name: string } | null
   event_date: string
   location: string | null
   exchange_rate: number | null
@@ -50,7 +62,8 @@ export interface EventSummary {
 
 export interface EventDetail {
   id: string
-  client_name: string
+  client_id: string | null
+  client: { id: string; name: string } | null
   event_date: string
   location: string | null
   exchange_rate: number | null

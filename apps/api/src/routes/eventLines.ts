@@ -36,7 +36,7 @@ router.post('/', async (req, res) => {
       provider_id, neto: neto ?? 0, impuestos: impuestos ?? 0,
       sort_order: sort_order ?? 999,
     })
-    .select('*, provider:providers(id,name,cuit)')
+    .select('*, provider:providers(id,name,cuit,email,phone)')
     .single()
 
   if (error) return res.status(500).json({ error: error.message })
@@ -66,7 +66,7 @@ router.put('/:id', async (req, res) => {
     .from('event_lines')
     .update(update)
     .eq('id', req.params.id)
-    .select('*, provider:providers(id,name,cuit)')
+    .select('*, provider:providers(id,name,cuit,email,phone)')
     .single()
 
   if (error) return res.status(500).json({ error: error.message })
@@ -99,7 +99,7 @@ router.patch('/:id/status', async (req, res) => {
     .from('event_lines')
     .update(update)
     .eq('id', req.params.id)
-    .select('*, provider:providers(id,name,cuit)')
+    .select('*, provider:providers(id,name,cuit,email,phone)')
     .single()
 
   if (error) return res.status(500).json({ error: error.message })

@@ -4,6 +4,7 @@ import cors from 'cors'
 import eventsRouter from './routes/events'
 import eventLinesRouter from './routes/eventLines'
 import providersRouter from './routes/providers'
+import clientsRouter from './routes/clients'
 import invoicesRouter from './routes/invoices'
 import lineCategoriesRouter from './routes/lineCategories'
 import { requireAuth } from './lib/requireAuth'
@@ -30,6 +31,7 @@ app.use('/api', requireAuth)
 app.use('/api/events', eventsRouter)
 app.use('/api/event-lines', eventLinesRouter)
 app.use('/api/providers', providersRouter)
+app.use('/api/clients', clientsRouter)
 app.use('/api/invoices', invoicesRouter)
 app.use('/api/line-categories', lineCategoriesRouter)
 

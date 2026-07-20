@@ -6,7 +6,7 @@ const router = Router()
 router.get('/', async (_req, res) => {
   const { data, error } = await supabase
     .from('events')
-    .select('*, event_lines(kind, neto, impuestos, total)')
+    .select('*, client:clients(id,name), event_lines(kind, neto, impuestos, total)')
     .order('event_date', { ascending: false })
 
   if (error) return res.status(500).json({ error: error.message })
@@ -26,7 +26,7 @@ router.get('/', async (_req, res) => {
 router.get('/:id', async (req, res) => {
   const { data: event, error } = await supabase
     .from('events')
-    .select('*')
+    .select('*, client:clients(id,name)')
     .eq('id', req.params.id)
     .single()
 
@@ -34,7 +34,7 @@ router.get('/:id', async (req, res) => {
 
   const { data: lines, error: linesError } = await supabase
     .from('event_lines')
-    .select('*, provider:providers(id,name,cuit)')
+    .select('*, provider:providers(id,name,cuit,email,phone)')
     .eq('event_id', req.params.id)
     .order('kind')
     .order('sort_order')
@@ -45,14 +45,14 @@ router.get('/:id', async (req, res) => {
 })
 
 router.post('/', async (req, res) => {
-  const { client_name, event_date, location, exchange_rate, notes } = req.body
-  if (!client_name || !event_date) {
-    return res.status(400).json({ error: 'client_name and event_date are required' })
+  const { client_id, event_date, location, exchange_rate, notes } = req.body
+  if (!client_id || !event_date) {
+    return res.status(400).json({ error: 'client_id and event_date are required' })
   }
 
   const { data: event, error } = await supabase
     .from('events')
-    .insert({ client_name, event_date, location, exchange_rate, notes })
+    .insert({ client_id, event_date, location, exchange_rate, notes })
     .select()
     .single()
 
@@ -84,10 +84,10 @@ router.post('/', async (req, res) => {
 })
 
 router.put('/:id', async (req, res) => {
-  const { client_name, event_date, location, exchange_rate, notes } = req.body
+  const { client_id, event_date, location, exchange_rate, notes } = req.body
   const { data, error } = await supabase
     .from('events')
-    .update({ client_name, event_date, location, exchange_rate, notes })
+    .update({ client_id, event_date, location, exchange_rate, notes })
     .eq('id', req.params.id)
     .select()
     .single()

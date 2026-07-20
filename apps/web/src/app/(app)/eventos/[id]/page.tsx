@@ -5,8 +5,10 @@ import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { EventDetail, EventLine, LineKind } from '@/types'
-import { formatARS, formatUSD, formatDate, toUsd } from '@/lib/format'
+import { formatARS, formatUSD, toUsd } from '@/lib/format'
 import { ProviderSelect } from '@/components/ProviderSelect'
+import { ClientSelect } from '@/components/ClientSelect'
+import { LocationPicker } from '@/components/LocationPicker'
 import { PaymentModal } from '@/components/PaymentModal'
 import { InvoiceModal } from '@/components/InvoiceModal'
 import { AddLineModal } from '@/components/AddLineModal'
@@ -48,6 +50,11 @@ export default function EventDetailPage() {
     onSuccess: () => { invalidate(); setInvoiceLine(null) },
   })
 
+  const updateEventMutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) => api.put(`/api/events/${id}`, { ...event, ...data }),
+    onSuccess: invalidate,
+  })
+
   const addLineMutation = useMutation({
     mutationFn: (data: { event_id: string; kind: LineKind; category_label: string }) =>
       api.post('/api/event-lines', data),
@@ -56,11 +63,6 @@ export default function EventDetailPage() {
 
   const deleteLineMutation = useMutation({
     mutationFn: (lineId: string) => api.delete(`/api/event-lines/${lineId}`),
-    onSuccess: invalidate,
-  })
-
-  const updateExchangeRateMutation = useMutation({
-    mutationFn: (exchange_rate: number | null) => api.put(`/api/events/${id}`, { ...event, exchange_rate }),
     onSuccess: invalidate,
   })
 
@@ -86,10 +88,32 @@ export default function EventDetailPage() {
         <button onClick={() => router.push('/eventos')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-3">
           <ArrowLeft className="w-4 h-4" /> Eventos
         </button>
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-lg font-semibold text-gray-900">{event.client_name}</h1>
-            <p className="text-sm text-gray-500">{formatDate(event.event_date)} · {event.location || 'Sin lugar'}</p>
+            <label className="block text-xs text-gray-500 mb-1">Cliente</label>
+            <ClientSelect
+              value={event.client_id}
+              onChange={(client_id) => updateEventMutation.mutate({ client_id })}
+              className="text-lg font-semibold text-gray-900 border-none bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1 -mx-1"
+            />
+          </div>
+          <div className="text-right">
+            <label className="block text-xs text-gray-500 mb-1">Fecha del evento</label>
+            <input
+              type="date"
+              defaultValue={event.event_date}
+              onBlur={(e) => e.target.value && updateEventMutation.mutate({ event_date: e.target.value })}
+              className="px-2 py-1 text-sm text-right border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+        <div className="flex items-start justify-between mt-3">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Lugar</label>
+            <LocationPicker
+              value={event.location}
+              onChange={(location) => updateEventMutation.mutate({ location })}
+            />
           </div>
           <div className="text-right">
             <label className="block text-xs text-gray-500 mb-1">Tipo de cambio</label>
@@ -97,7 +121,7 @@ export default function EventDetailPage() {
               type="number"
               step="0.01"
               defaultValue={event.exchange_rate ?? ''}
-              onBlur={(e) => updateExchangeRateMutation.mutate(e.target.value ? Number(e.target.value) : null)}
+              onBlur={(e) => updateEventMutation.mutate({ exchange_rate: e.target.value ? Number(e.target.value) : null })}
               placeholder="Sin definir"
               className="w-28 px-2 py-1 text-sm text-right border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
@@ -263,6 +287,7 @@ function LineRow({
       )}
       <td className="px-2 py-2">
         <input
+          key={`neto-${line.id}-${line.neto}`}
           type="number"
           step="0.01"
           defaultValue={line.neto}
@@ -272,6 +297,7 @@ function LineRow({
       </td>
       <td className="px-2 py-2">
         <input
+          key={`impuestos-${line.id}-${line.impuestos}`}
           type="number"
           step="0.01"
           defaultValue={line.impuestos}

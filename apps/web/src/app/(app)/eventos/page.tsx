@@ -1,13 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
-import { createClient } from '@/lib/supabase/client'
 import { EventSummary } from '@/types'
 import { formatARS, formatDate } from '@/lib/format'
-import { Plus, LogOut, Loader2 } from 'lucide-react'
+import { ClientSelect } from '@/components/ClientSelect'
+import { LocationPicker } from '@/components/LocationPicker'
+import { Plus, Loader2 } from 'lucide-react'
+
+const MONTH_NAMES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+]
 
 export default function EventosPage() {
   const router = useRouter()
@@ -19,10 +25,26 @@ export default function EventosPage() {
     queryFn: async () => (await api.get<EventSummary[]>('/api/events')).data,
   })
 
+  const monthlyTotals = useMemo(() => {
+    const byMonth = new Map<string, { label: string; ingresos: number; gastos: number }>()
+    for (const ev of events ?? []) {
+      const [y, m] = ev.event_date.split('-')
+      const key = `${y}-${m}`
+      const label = `${MONTH_NAMES[Number(m) - 1]} ${y}`
+      const entry = byMonth.get(key) ?? { label, ingresos: 0, gastos: 0 }
+      entry.ingresos += ev.ingresos
+      entry.gastos += ev.gastos
+      byMonth.set(key, entry)
+    }
+    return Array.from(byMonth.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([key, v]) => ({ key, ...v, neto: v.ingresos - v.gastos }))
+  }, [events])
+
   const createMutation = useMutation({
-    mutationFn: (payload: { client_name: string; event_date: string; location: string; exchange_rate: string }) =>
+    mutationFn: (payload: { client_id: string; event_date: string; location: string; exchange_rate: string }) =>
       api.post('/api/events', {
-        client_name: payload.client_name,
+        client_id: payload.client_id,
         event_date: payload.event_date,
         location: payload.location || null,
         exchange_rate: payload.exchange_rate ? Number(payload.exchange_rate) : null,
@@ -34,24 +56,11 @@ export default function EventosPage() {
     },
   })
 
-  async function handleLogout() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-gray-900">Eventos ACO</h1>
-        <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1.5">
-          <LogOut className="w-4 h-4" /> Salir
-        </button>
-      </header>
-
       <main className="max-w-5xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-medium text-gray-700">Todos los eventos</h2>
+          <h1 className="text-lg font-semibold text-gray-900">Eventos</h1>
           <button
             onClick={() => setShowNewModal(true)}
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
@@ -59,6 +68,21 @@ export default function EventosPage() {
             <Plus className="w-4 h-4" /> Nuevo evento
           </button>
         </div>
+
+        {monthlyTotals.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+            {monthlyTotals.map(m => (
+              <div key={m.key} className="bg-white rounded-xl border border-gray-200 px-4 py-3">
+                <p className="text-xs font-medium text-gray-500 mb-2">{m.label}</p>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between"><span className="text-gray-500">Ingresos</span><span className="font-medium text-gray-800">{formatARS(m.ingresos)}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Costos</span><span className="font-medium text-gray-800">{formatARS(m.gastos)}</span></div>
+                  <div className="flex justify-between border-t border-gray-100 pt-1"><span className="text-gray-500">Neto</span><span className={`font-semibold ${m.neto >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatARS(m.neto)}</span></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
@@ -83,7 +107,7 @@ export default function EventosPage() {
                   onClick={() => router.push(`/eventos/${ev.id}`)}
                   className="hover:bg-gray-50 cursor-pointer"
                 >
-                  <td className="px-4 py-3 font-medium text-gray-900">{ev.client_name}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900">{ev.client?.name ?? '—'}</td>
                   <td className="px-4 py-3 text-gray-600">{formatDate(ev.event_date)}</td>
                   <td className="px-4 py-3 text-gray-600">{ev.location || '—'}</td>
                   <td className={`px-4 py-3 text-right font-medium ${ev.resultado >= 0 ? 'text-green-700' : 'text-red-700'}`}>
@@ -111,10 +135,10 @@ function NewEventModal({
   onClose, onSubmit, loading,
 }: {
   onClose: () => void
-  onSubmit: (payload: { client_name: string; event_date: string; location: string; exchange_rate: string }) => void
+  onSubmit: (payload: { client_id: string; event_date: string; location: string; exchange_rate: string }) => void
   loading: boolean
 }) {
-  const [clientName, setClientName] = useState('')
+  const [clientId, setClientId] = useState<string | null>(null)
   const [eventDate, setEventDate] = useState('')
   const [location, setLocation] = useState('')
   const [exchangeRate, setExchangeRate] = useState('')
@@ -124,13 +148,16 @@ function NewEventModal({
       <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
         <h3 className="text-base font-semibold text-gray-900 mb-4">Nuevo evento</h3>
         <form
-          onSubmit={(e) => { e.preventDefault(); onSubmit({ client_name: clientName, event_date: eventDate, location, exchange_rate: exchangeRate }) }}
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (!clientId) return
+            onSubmit({ client_id: clientId, event_date: eventDate, location, exchange_rate: exchangeRate })
+          }}
           className="space-y-3"
         >
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Cliente</label>
-            <input required value={clientName} onChange={e => setClientName(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <ClientSelect value={clientId} onChange={setClientId} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Fecha</label>
@@ -139,8 +166,7 @@ function NewEventModal({
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Lugar</label>
-            <input value={location} onChange={e => setLocation(e.target.value)} placeholder="SUM / Terraza"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <LocationPicker value={location} onChange={setLocation} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Tipo de cambio (opcional)</label>
@@ -150,7 +176,7 @@ function NewEventModal({
 
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
-            <button type="submit" disabled={loading}
+            <button type="submit" disabled={loading || !clientId}
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               Crear evento
