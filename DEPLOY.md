@@ -2,6 +2,8 @@
 
 Pasos para conectar el proyecto a las cuentas reales de `acoworkspace`. El código ya está listo; esto son los pasos manuales que solo Fede puede hacer (requieren login en las cuentas de la organización).
 
+> Nota: el repo `acoworkspace/eventos` es público — el plan Hobby de Vercel no permite auto-deploy en repos privados con colaboradores externos. No hay secretos en el código (viven en variables de entorno de Vercel/Supabase).
+
 ## 1. Supabase (`info@acoworkspace.com`)
 
 1. Crear un proyecto nuevo en https://supabase.com/dashboard (org de acoworkspace).
