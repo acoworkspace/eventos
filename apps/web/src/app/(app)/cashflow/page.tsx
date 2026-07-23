@@ -94,7 +94,7 @@ export default function CashFlowPage() {
     const text = `${diff >= 0 ? '+' : ''}${pct !== null ? `${pct}%` : formatARS(diff)}`
     const color = diff >= 0 ? '#16a34a' : '#dc2626'
     return (
-      <text key={index} x={x + width / 2} y={y - 6} textAnchor="middle" fontSize={10} fontWeight={600} fill={color}>
+      <text key={index} x={x + width / 2} y={Math.max(10, y - 6)} textAnchor="middle" fontSize={10} fontWeight={600} fill={color}>
         {text}
       </text>
     )
@@ -268,7 +268,7 @@ export default function CashFlowPage() {
                 </div>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={trend} margin={{ top: 16, right: 0, left: 0, bottom: 0 }}>
+                    <BarChart data={trend} margin={{ top: 24, right: 0, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
                       <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                       <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
