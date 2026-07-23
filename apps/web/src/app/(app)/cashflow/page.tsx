@@ -33,6 +33,20 @@ function CellTds({ cell, className, borderClassName, py = 'py-2' }: {
   )
 }
 
+function signColor(v: number) {
+  return v >= 0 ? 'text-green-700' : 'text-red-700'
+}
+
+function ResultTds({ cell }: { cell: Cell }) {
+  return (
+    <>
+      <td className={`px-3 py-2 text-right whitespace-nowrap border-l border-gray-200 ${signColor(cell.neto)}`}>{cell.neto ? formatARS(cell.neto) : '—'}</td>
+      <td className={`px-3 py-2 text-right whitespace-nowrap ${signColor(cell.impuestos)}`}>{cell.impuestos ? formatARS(cell.impuestos) : '—'}</td>
+      <td className={`px-3 py-2 text-right whitespace-nowrap ${signColor(cell.total)}`}>{cell.total ? formatARS(cell.total) : '—'}</td>
+    </>
+  )
+}
+
 function monthsOfYear(year: number) {
   return Array.from({ length: 12 }, (_, i) => ({
     key: `${year}-${String(i + 1).padStart(2, '0')}`,
@@ -40,9 +54,13 @@ function monthsOfYear(year: number) {
   }))
 }
 
+const METRICS = ['ambos', 'Ingresos', 'Gastos', 'Neto'] as const
+type Metric = typeof METRICS[number]
+
 export default function CashFlowPage() {
   const [year, setYear] = useState(() => new Date().getFullYear())
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [metric, setMetric] = useState<Metric>('ambos')
 
   const { data: events, isLoading } = useQuery({
     queryKey: ['events'],
@@ -62,9 +80,25 @@ export default function CashFlowPage() {
       const inMonth = yearEvents.filter(ev => ev.event_date.startsWith(m.key))
       const ingresos = inMonth.reduce((s, ev) => s + ev.ingresos, 0)
       const gastos = inMonth.reduce((s, ev) => s + ev.gastos, 0)
-      return { month: m.label, Ingresos: ingresos, Gastos: gastos }
+      return { month: m.label, Ingresos: ingresos, Gastos: gastos, Neto: ingresos - gastos }
     })
   }, [months, yearEvents])
+
+  function renderVariationLabel(props: any) {
+    const { x, y, width, index, value } = props
+    if (metric === 'ambos' || index === 0) return <Fragment key={index} />
+    const prevValue = trend[index - 1][metric]
+    const diff = value - prevValue
+    if (diff === 0) return <Fragment key={index} />
+    const pct = prevValue !== 0 ? Math.round((diff / Math.abs(prevValue)) * 100) : null
+    const text = `${diff >= 0 ? '+' : ''}${pct !== null ? `${pct}%` : formatARS(diff)}`
+    const color = diff >= 0 ? '#16a34a' : '#dc2626'
+    return (
+      <text key={index} x={x + width / 2} y={y - 6} textAnchor="middle" fontSize={10} fontWeight={600} fill={color}>
+        {text}
+      </text>
+    )
+  }
 
   // Category breakdown (gastos) for the whole year
   const categoryBreakdown = useMemo(() => {
@@ -150,26 +184,42 @@ export default function CashFlowPage() {
     return result
   }, [yearEvents])
 
-  // Totalizador de abajo: Ingresos - Egresos por mes. "Precio Servicio" no se suma
-  // como ingreso porque ya está compuesto por Seña + Saldo — sumarlo duplicaría el ingreso.
+  // Totalizador de abajo: Ingresos - Egresos por mes, separando neto/impuestos/total.
+  // "Precio Servicio" no se suma como ingreso porque ya está compuesto por Seña + Saldo —
+  // sumarlo duplicaría el ingreso.
   const netByMonth = useMemo(() => {
-    const perMonth = new Map(months.map(m => [m.key, { ingresos: 0, gastos: 0 }]))
+    const perMonth = new Map(months.map(m => [m.key, { ingresos: { ...EMPTY_CELL }, gastos: { ...EMPTY_CELL } }]))
     for (const row of categoryRows) {
       if (row.label === 'Precio Servicio') continue
       for (const [monthKey, cell] of Object.entries(row.totals)) {
         const bucket = perMonth.get(monthKey)
         if (!bucket) continue
-        if (row.kind === 'ingreso') bucket.ingresos += cell.total
-        else bucket.gastos += cell.total
+        const target = row.kind === 'ingreso' ? bucket.ingresos : bucket.gastos
+        target.neto += cell.neto
+        target.impuestos += cell.impuestos
+        target.total += cell.total
       }
     }
     return perMonth
   }, [categoryRows, months])
 
-  const netGrandTotal = useMemo(
-    () => Array.from(netByMonth.values()).reduce((s, v) => s + (v.ingresos - v.gastos), 0),
-    [netByMonth]
-  )
+  function resultCell(bucket: { ingresos: Cell; gastos: Cell }): Cell {
+    return {
+      neto: bucket.ingresos.neto - bucket.gastos.neto,
+      impuestos: bucket.ingresos.impuestos - bucket.gastos.impuestos,
+      total: bucket.ingresos.total - bucket.gastos.total,
+    }
+  }
+
+  const netGrandTotal = useMemo(() => {
+    return Array.from(netByMonth.values()).reduce(
+      (s, bucket) => {
+        const r = resultCell(bucket)
+        return { neto: s.neto + r.neto, impuestos: s.impuestos + r.impuestos, total: s.total + r.total }
+      },
+      { ...EMPTY_CELL }
+    )
+  }, [netByMonth])
 
   function toggleExpanded(category: string) {
     setExpanded(prev => {
@@ -200,84 +250,110 @@ export default function CashFlowPage() {
 
         {!isLoading && (
           <>
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <h2 className="text-sm font-semibold text-gray-700 mb-3">Tendencia mensual — Ingresos vs Costos</h2>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={trend}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                    <Tooltip formatter={(v: any) => formatARS(Number(v))} />
-                    <Legend />
-                    <Bar dataKey="Ingresos" fill="#16a34a" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Gastos" fill="#dc2626" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <h2 className="text-sm font-semibold text-gray-700 mb-3">Costos por categoría ({year})</h2>
-                {categoryBreakdown.length === 0 ? (
-                  <p className="text-sm text-gray-400">Sin datos.</p>
-                ) : (
-                  <div className="flex items-center gap-4">
-                    <div className="h-48 w-48 shrink-0">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={categoryBreakdown} dataKey="value" nameKey="name" innerRadius={45} outerRadius={80}>
-                            {categoryBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                          </Pie>
-                          <Tooltip formatter={(v: any) => formatARS(Number(v))} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <ul className="text-xs space-y-1 flex-1 min-w-0">
-                      {categoryBreakdown.slice(0, 8).map((c, i) => (
-                        <li key={c.name} className="flex items-center justify-between gap-2">
-                          <span className="flex items-center gap-1.5 truncate">
-                            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
-                            <span className="truncate text-gray-600">{c.name}</span>
-                          </span>
-                          <span className="text-gray-800 font-medium whitespace-nowrap">{formatARS(c.value)}</span>
-                        </li>
-                      ))}
-                    </ul>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-semibold text-gray-700">Tendencia mensual</h2>
+                  <div className="flex items-center gap-1.5">
+                    {METRICS.map(opt => (
+                      <button
+                        key={opt}
+                        onClick={() => setMetric(opt)}
+                        className={`px-2.5 py-1 text-xs rounded-full border ${metric === opt ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                      >
+                        {opt === 'ambos' ? 'Todos' : opt === 'Gastos' ? 'Costos' : opt}
+                      </button>
+                    ))}
                   </div>
-                )}
+                </div>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={trend} margin={{ top: 16, right: 0, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                      <Tooltip formatter={(v: any) => formatARS(Number(v))} />
+                      <Legend />
+                      {metric === 'ambos' && (
+                        <>
+                          <Bar dataKey="Ingresos" fill="#16a34a" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="Gastos" fill="#dc2626" radius={[4, 4, 0, 0]} />
+                        </>
+                      )}
+                      {metric !== 'ambos' && (
+                        <Bar dataKey={metric} radius={[4, 4, 0, 0]} label={renderVariationLabel}>
+                          {trend.map((d, i) => (
+                            <Cell key={i} fill={metric === 'Gastos' ? '#dc2626' : d[metric] >= 0 ? '#16a34a' : '#dc2626'} />
+                          ))}
+                        </Bar>
+                      )}
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
 
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <h2 className="text-sm font-semibold text-gray-700 mb-3">Principales clientes ({year})</h2>
-                {topClients.length === 0 ? (
-                  <p className="text-sm text-gray-400">Sin datos.</p>
-                ) : (
-                  <div className="flex items-center gap-4">
-                    <div className="h-48 w-48 shrink-0">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={topClients} dataKey="value" nameKey="name" innerRadius={45} outerRadius={80}>
-                            {topClients.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                          </Pie>
-                          <Tooltip formatter={(v: any) => formatARS(Number(v))} />
-                        </PieChart>
-                      </ResponsiveContainer>
+              <div className="flex flex-col gap-4">
+                <div className="bg-white rounded-xl border border-gray-200 p-3">
+                  <h2 className="text-xs font-semibold text-gray-700 mb-2">Costos por categoría ({year})</h2>
+                  {categoryBreakdown.length === 0 ? (
+                    <p className="text-xs text-gray-400">Sin datos.</p>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <div className="h-24 w-24 shrink-0">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={categoryBreakdown} dataKey="value" nameKey="name" innerRadius={26} outerRadius={46}>
+                              {categoryBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                            </Pie>
+                            <Tooltip formatter={(v: any) => formatARS(Number(v))} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <ul className="text-[11px] space-y-1 flex-1 min-w-0">
+                        {categoryBreakdown.slice(0, 5).map((c, i) => (
+                          <li key={c.name} className="flex items-center justify-between gap-2">
+                            <span className="flex items-center gap-1.5 truncate">
+                              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
+                              <span className="truncate text-gray-600">{c.name}</span>
+                            </span>
+                            <span className="text-gray-800 font-medium whitespace-nowrap">{formatARS(c.value)}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                    <ul className="text-xs space-y-1 flex-1 min-w-0">
-                      {topClients.map((c, i) => (
-                        <li key={c.name} className="flex items-center justify-between gap-2">
-                          <span className="flex items-center gap-1.5 truncate">
-                            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
-                            <span className="truncate text-gray-600">{c.name}</span>
-                          </span>
-                          <span className="text-gray-800 font-medium whitespace-nowrap">{formatARS(c.value)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                  )}
+                </div>
+
+                <div className="bg-white rounded-xl border border-gray-200 p-3">
+                  <h2 className="text-xs font-semibold text-gray-700 mb-2">Principales clientes ({year})</h2>
+                  {topClients.length === 0 ? (
+                    <p className="text-xs text-gray-400">Sin datos.</p>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <div className="h-24 w-24 shrink-0">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={topClients} dataKey="value" nameKey="name" innerRadius={26} outerRadius={46}>
+                              {topClients.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                            </Pie>
+                            <Tooltip formatter={(v: any) => formatARS(Number(v))} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <ul className="text-[11px] space-y-1 flex-1 min-w-0">
+                        {topClients.slice(0, 5).map((c, i) => (
+                          <li key={c.name} className="flex items-center justify-between gap-2">
+                            <span className="flex items-center gap-1.5 truncate">
+                              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
+                              <span className="truncate text-gray-600">{c.name}</span>
+                            </span>
+                            <span className="text-gray-800 font-medium whitespace-nowrap">{formatARS(c.value)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -362,16 +438,10 @@ export default function CashFlowPage() {
                     <td className="px-3 py-2 sticky left-0 bg-gray-50 whitespace-nowrap">Resultado</td>
                     {months.map(m => {
                       const bucket = netByMonth.get(m.key)
-                      const net = bucket ? bucket.ingresos - bucket.gastos : 0
-                      return (
-                        <td key={m.key} colSpan={3} className={`px-3 py-2 text-right whitespace-nowrap border-l border-gray-200 ${net >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                          {net ? formatARS(net) : '—'}
-                        </td>
-                      )
+                      const r = bucket ? resultCell(bucket) : { ...EMPTY_CELL }
+                      return <ResultTds key={m.key} cell={r} />
                     })}
-                    <td colSpan={3} className={`px-3 py-2 text-right whitespace-nowrap border-l border-gray-200 ${netGrandTotal >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                      {formatARS(netGrandTotal)}
-                    </td>
+                    <ResultTds cell={netGrandTotal} />
                   </tr>
                 </tfoot>
               </table>
