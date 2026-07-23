@@ -4,7 +4,7 @@ import { Fragment, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { EventSummary } from '@/types'
-import { formatARS } from '@/lib/format'
+import { formatARS, formatDate } from '@/lib/format'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell,
@@ -144,31 +144,34 @@ export default function CashFlowPage() {
       .sort((a, b) => (a.kind === b.kind ? a.label.localeCompare(b.label) : a.kind === 'ingreso' ? -1 : 1))
   }, [yearEvents])
 
-  // Desglose por cliente de las categorías de ingreso (Precio Servicio, Seña, Saldo),
-  // para poder desplegar cada fila y ver qué clientes componen ese total.
-  const clientBreakdownByCategory = useMemo(() => {
-    const byCategory = new Map<string, Map<string, Record<string, Cell>>>()
+  // Desglose por evento de cada categoría (ingreso o gasto), para poder desplegar cualquier
+  // fila y ver qué eventos la componen. Se identifica cada fila por cliente + fecha del
+  // evento (para distinguir eventos repetidos del mismo cliente) y se omiten los eventos que
+  // no tuvieron esa línea contratada (total 0).
+  const eventBreakdownByCategory = useMemo(() => {
+    const byCategory = new Map<string, Map<string, { label: string; totals: Record<string, Cell> }>>()
     for (const ev of yearEvents) {
       const monthKey = ev.event_date.slice(0, 7)
-      const clientName = ev.client?.name ?? 'Sin cliente'
-      for (const line of ev.lines.filter(l => l.kind === 'ingreso')) {
+      const label = `${ev.client?.name ?? 'Sin cliente'} — ${formatDate(ev.event_date)}`
+      for (const line of ev.lines) {
+        if (Number(line.total) === 0 && Number(line.neto) === 0 && Number(line.impuestos) === 0) continue
         if (!byCategory.has(line.category_label)) byCategory.set(line.category_label, new Map())
-        const byClient = byCategory.get(line.category_label)!
-        if (!byClient.has(clientName)) byClient.set(clientName, {})
-        const totals = byClient.get(clientName)!
-        const cell = totals[monthKey] ?? { neto: 0, impuestos: 0, total: 0 }
+        const byEvent = byCategory.get(line.category_label)!
+        if (!byEvent.has(ev.id)) byEvent.set(ev.id, { label, totals: {} })
+        const entry = byEvent.get(ev.id)!
+        const cell = entry.totals[monthKey] ?? { neto: 0, impuestos: 0, total: 0 }
         cell.neto += Number(line.neto)
         cell.impuestos += Number(line.impuestos)
         cell.total += Number(line.total)
-        totals[monthKey] = cell
+        entry.totals[monthKey] = cell
       }
     }
-    const result = new Map<string, { client: string; totals: Record<string, Cell> }[]>()
-    for (const [category, byClient] of byCategory) {
+    const result = new Map<string, { key: string; label: string; totals: Record<string, Cell> }[]>()
+    for (const [category, byEvent] of byCategory) {
       result.set(
         category,
-        Array.from(byClient.entries())
-          .map(([client, totals]) => ({ client, totals }))
+        Array.from(byEvent.entries())
+          .map(([eventId, e]) => ({ key: eventId, label: e.label, totals: e.totals }))
           .sort((a, b) => {
             const totalA = Object.values(a.totals).reduce((s, v) => s + v.total, 0)
             const totalB = Object.values(b.totals).reduce((s, v) => s + v.total, 0)
@@ -357,16 +360,18 @@ export default function CashFlowPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {categoryRows.map((row, i) => {
-                    const clientRows = clientBreakdownByCategory.get(row.label) ?? []
-                    const canExpand = row.kind === 'ingreso' && clientRows.length > 0
+                    const eventRows = eventBreakdownByCategory.get(row.label) ?? []
+                    const canExpand = eventRows.length > 0
                     const isOpen = expanded.has(row.label)
                     const isSectionStart = i === 0 || categoryRows[i - 1].kind !== row.kind
                     return (
                       <Fragment key={row.label}>
                         {isSectionStart && (
                           <tr>
-                            <td colSpan={months.length * 3 + 1} className={`px-3 py-1 sticky left-0 text-[11px] font-semibold uppercase tracking-wide ${row.kind === 'ingreso' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                              {row.kind === 'ingreso' ? 'Ingresos' : 'Egresos'}
+                            <td colSpan={months.length * 3 + 1} className={`p-0 sticky left-0 text-[11px] font-semibold uppercase tracking-wide ${row.kind === 'ingreso' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                              <div className="sticky left-0 w-fit px-3 py-1">
+                                {row.kind === 'ingreso' ? 'Ingresos' : 'Egresos'}
+                              </div>
                             </td>
                           </tr>
                         )}
@@ -383,9 +388,9 @@ export default function CashFlowPage() {
                             <CellTds key={m.key} cell={row.totals[m.key]} className="text-gray-600" borderClassName="border-l border-gray-200" />
                           ))}
                         </tr>
-                        {canExpand && isOpen && clientRows.map(({ client, totals }) => (
-                          <tr key={`${row.label}-${client}`} className="bg-gray-50/60">
-                            <td className="px-3 py-1.5 pl-9 sticky left-0 bg-gray-100 text-gray-500 whitespace-nowrap">{client}</td>
+                        {canExpand && isOpen && eventRows.map(({ key, label, totals }) => (
+                          <tr key={key} className="bg-gray-50/60">
+                            <td className="px-3 py-1.5 pl-9 sticky left-0 bg-gray-100 text-gray-500 whitespace-nowrap">{label}</td>
                             {months.map(m => (
                               <CellTds key={m.key} cell={totals[m.key]} className="text-gray-400" borderClassName="border-l border-gray-200" py="py-1.5" />
                             ))}
