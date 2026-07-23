@@ -1,19 +1,30 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { Client } from '@/types'
-import { Plus, Loader2 } from 'lucide-react'
+import { Plus, Loader2, Search } from 'lucide-react'
 
 export default function ClientesPage() {
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState<Client | 'new' | null>(null)
+  const [search, setSearch] = useState('')
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ['clients'],
     queryFn: async () => (await api.get<Client[]>('/api/clients')).data,
   })
+
+  const filteredClients = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return clients ?? []
+    return (clients ?? []).filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      c.cuit?.toLowerCase().includes(q) ||
+      c.email?.toLowerCase().includes(q)
+    )
+  }, [clients, search])
 
   const saveMutation = useMutation({
     mutationFn: (payload: { id?: string; name: string; cuit: string; email: string; phone: string; notes: string }) =>
@@ -39,6 +50,16 @@ export default function ClientesPage() {
           </button>
         </div>
 
+        <div className="relative mb-4 max-w-xs">
+          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar por nombre, CUIT o email…"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
@@ -53,10 +74,12 @@ export default function ClientesPage() {
               {isLoading && (
                 <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">Cargando...</td></tr>
               )}
-              {!isLoading && clients?.length === 0 && (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">Todavía no hay clientes cargados.</td></tr>
+              {!isLoading && filteredClients.length === 0 && (
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">
+                  {search ? 'Sin resultados.' : 'Todavía no hay clientes cargados.'}
+                </td></tr>
               )}
-              {clients?.map(c => (
+              {filteredClients.map(c => (
                 <tr key={c.id} onClick={() => setEditing(c)} className="hover:bg-gray-50 cursor-pointer">
                   <td className="px-4 py-3 font-medium text-gray-900">{c.name}</td>
                   <td className="px-4 py-3 text-gray-600">{c.cuit || '—'}</td>

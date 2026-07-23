@@ -9,6 +9,7 @@ import { formatARS, formatUSD, toUsd } from '@/lib/format'
 import { ProviderSelect } from '@/components/ProviderSelect'
 import { ClientSelect } from '@/components/ClientSelect'
 import { LocationPicker } from '@/components/LocationPicker'
+import { CurrencyInput } from '@/components/CurrencyInput'
 import { PaymentModal } from '@/components/PaymentModal'
 import { InvoiceModal } from '@/components/InvoiceModal'
 import { AddLineModal } from '@/components/AddLineModal'
@@ -316,22 +317,16 @@ function LineRow({
         </td>
       )}
       <td className="px-2 py-2">
-        <input
-          key={`neto-${line.id}-${line.neto}`}
-          type="number"
-          step="0.01"
-          defaultValue={line.neto}
-          onBlur={(e) => onUpdateLine(line.id, { neto: Number(e.target.value) })}
+        <CurrencyInput
+          value={line.neto}
+          onCommit={(v) => onUpdateLine(line.id, { neto: v })}
           className="w-full px-2 py-1 text-right text-sm border border-transparent hover:border-gray-200 focus:border-blue-400 rounded focus:outline-none"
         />
       </td>
       <td className="px-2 py-2">
-        <input
-          key={`impuestos-${line.id}-${line.impuestos}`}
-          type="number"
-          step="0.01"
-          defaultValue={line.impuestos}
-          onBlur={(e) => onUpdateLine(line.id, { impuestos: Number(e.target.value) })}
+        <CurrencyInput
+          value={line.impuestos}
+          onCommit={(v) => onUpdateLine(line.id, { impuestos: v })}
           className="w-full px-2 py-1 text-right text-sm border border-transparent hover:border-gray-200 focus:border-blue-400 rounded focus:outline-none"
         />
       </td>
