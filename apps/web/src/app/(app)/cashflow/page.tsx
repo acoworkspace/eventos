@@ -6,7 +6,7 @@ import api from '@/lib/api'
 import { EventSummary } from '@/types'
 import { formatARS } from '@/lib/format'
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell,
 } from 'recharts'
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
@@ -94,31 +94,6 @@ export default function CashFlowPage() {
       return { month: m.label, Ingresos: ingresos, Gastos: gastos, Neto: ingresos - gastos }
     })
   }, [months, yearEvents])
-
-  function makeVariationLabel(series: Series) {
-    // recharts drops zero-value bars before computing rects, so the `index` a LabelList
-    // content function receives only counts bars with a nonzero value for this series —
-    // it does not match the month's position in `trend`. Reconstruct the real position by
-    // filtering `trend` the same way recharts does.
-    const nonZeroTrend = trend.filter(t => t[series] !== 0)
-    return function renderVariationLabel(props: any) {
-      const { x, y, width, value, index } = props
-      const row = nonZeroTrend[index]
-      const realIndex = row ? trend.indexOf(row) : -1
-      if (realIndex <= 0) return <Fragment key={index} />
-      const prevValue = trend[realIndex - 1][series]
-      const diff = value - prevValue
-      if (diff === 0) return <Fragment key={realIndex} />
-      const pct = prevValue !== 0 ? Math.round((diff / Math.abs(prevValue)) * 100) : null
-      const text = `${diff >= 0 ? '+' : ''}${pct !== null ? `${pct}%` : formatARS(diff)}`
-      const color = diff >= 0 ? '#16a34a' : '#dc2626'
-      return (
-        <text key={realIndex} x={x + width / 2} y={Math.max(10, y - 6)} textAnchor="middle" fontSize={10} fontWeight={600} fill={color}>
-          {text}
-        </text>
-      )
-    }
-  }
 
   // Category breakdown (gastos) for the whole year
   const categoryBreakdown = useMemo(() => {
@@ -231,16 +206,6 @@ export default function CashFlowPage() {
     }
   }
 
-  const netGrandTotal = useMemo(() => {
-    return Array.from(netByMonth.values()).reduce(
-      (s, bucket) => {
-        const r = resultCell(bucket)
-        return { neto: s.neto + r.neto, impuestos: s.impuestos + r.impuestos, total: s.total + r.total }
-      },
-      { ...EMPTY_CELL }
-    )
-  }, [netByMonth])
-
   function toggleExpanded(category: string) {
     setExpanded(prev => {
       const next = new Set(prev)
@@ -301,9 +266,7 @@ export default function CashFlowPage() {
                       <Tooltip formatter={(v: any) => formatARS(Number(v))} />
                       <Legend />
                       {SERIES.filter(s => selectedSeries.has(s)).map(s => (
-                        <Bar key={s} dataKey={s} name={SERIES_LABEL[s]} fill={SERIES_COLOR[s]} radius={[4, 4, 0, 0]}>
-                          <LabelList dataKey={s} content={makeVariationLabel(s)} />
-                        </Bar>
+                        <Bar key={s} dataKey={s} name={SERIES_LABEL[s]} fill={SERIES_COLOR[s]} radius={[4, 4, 0, 0]} />
                       ))}
                     </BarChart>
                   </ResponsiveContainer>
@@ -381,7 +344,6 @@ export default function CashFlowPage() {
                   <tr>
                     <th rowSpan={2} className="text-left px-3 py-2 font-medium sticky left-0 bg-gray-50 align-bottom">Categoría</th>
                     {months.map(m => <th key={m.key} colSpan={3} className="text-center px-3 py-1 font-medium whitespace-nowrap border-l border-gray-200">{m.label}</th>)}
-                    <th colSpan={3} className="text-center px-3 py-1 font-medium whitespace-nowrap border-l border-gray-200">Total</th>
                   </tr>
                   <tr>
                     {months.map(m => (
@@ -391,17 +353,10 @@ export default function CashFlowPage() {
                         <th className="text-right px-3 py-1 font-normal whitespace-nowrap">Total</th>
                       </Fragment>
                     ))}
-                    <th className="text-right px-3 py-1 font-normal whitespace-nowrap border-l border-gray-200">Neto</th>
-                    <th className="text-right px-3 py-1 font-normal whitespace-nowrap">Imp.</th>
-                    <th className="text-right px-3 py-1 font-normal whitespace-nowrap">Total</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {categoryRows.map((row, i) => {
-                    const rowTotal = Object.values(row.totals).reduce(
-                      (s, v) => ({ neto: s.neto + v.neto, impuestos: s.impuestos + v.impuestos, total: s.total + v.total }),
-                      { ...EMPTY_CELL }
-                    )
                     const clientRows = clientBreakdownByCategory.get(row.label) ?? []
                     const canExpand = row.kind === 'ingreso' && clientRows.length > 0
                     const isOpen = expanded.has(row.label)
@@ -410,7 +365,7 @@ export default function CashFlowPage() {
                       <Fragment key={row.label}>
                         {isSectionStart && (
                           <tr>
-                            <td colSpan={months.length * 3 + 4} className={`px-3 py-1 sticky left-0 text-[11px] font-semibold uppercase tracking-wide ${row.kind === 'ingreso' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                            <td colSpan={months.length * 3 + 1} className={`px-3 py-1 sticky left-0 text-[11px] font-semibold uppercase tracking-wide ${row.kind === 'ingreso' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                               {row.kind === 'ingreso' ? 'Ingresos' : 'Egresos'}
                             </td>
                           </tr>
@@ -427,28 +382,20 @@ export default function CashFlowPage() {
                           {months.map(m => (
                             <CellTds key={m.key} cell={row.totals[m.key]} className="text-gray-600" borderClassName="border-l border-gray-200" />
                           ))}
-                          <CellTds cell={rowTotal} className="font-semibold text-gray-900" borderClassName="border-l border-gray-200" />
                         </tr>
-                        {canExpand && isOpen && clientRows.map(({ client, totals }) => {
-                          const clientTotal = Object.values(totals).reduce(
-                            (s, v) => ({ neto: s.neto + v.neto, impuestos: s.impuestos + v.impuestos, total: s.total + v.total }),
-                            { ...EMPTY_CELL }
-                          )
-                          return (
-                            <tr key={`${row.label}-${client}`} className="bg-gray-50/60">
-                              <td className="px-3 py-1.5 pl-9 sticky left-0 bg-gray-100 text-gray-500 whitespace-nowrap">{client}</td>
-                              {months.map(m => (
-                                <CellTds key={m.key} cell={totals[m.key]} className="text-gray-400" borderClassName="border-l border-gray-200" py="py-1.5" />
-                              ))}
-                              <CellTds cell={clientTotal} className="text-gray-500" borderClassName="border-l border-gray-200" py="py-1.5" />
-                            </tr>
-                          )
-                        })}
+                        {canExpand && isOpen && clientRows.map(({ client, totals }) => (
+                          <tr key={`${row.label}-${client}`} className="bg-gray-50/60">
+                            <td className="px-3 py-1.5 pl-9 sticky left-0 bg-gray-100 text-gray-500 whitespace-nowrap">{client}</td>
+                            {months.map(m => (
+                              <CellTds key={m.key} cell={totals[m.key]} className="text-gray-400" borderClassName="border-l border-gray-200" py="py-1.5" />
+                            ))}
+                          </tr>
+                        ))}
                       </Fragment>
                     )
                   })}
                   {categoryRows.length === 0 && (
-                    <tr><td colSpan={months.length * 3 + 4} className="px-3 py-8 text-center text-gray-400">No hay eventos en {year}.</td></tr>
+                    <tr><td colSpan={months.length * 3 + 1} className="px-3 py-8 text-center text-gray-400">No hay eventos en {year}.</td></tr>
                   )}
                 </tbody>
                 <tfoot>
@@ -459,7 +406,6 @@ export default function CashFlowPage() {
                       const r = bucket ? resultCell(bucket) : { ...EMPTY_CELL }
                       return <ResultTds key={m.key} cell={r} />
                     })}
-                    <ResultTds cell={netGrandTotal} />
                   </tr>
                 </tfoot>
               </table>
