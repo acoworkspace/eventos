@@ -1,6 +1,9 @@
 const pdfParse = require('pdf-parse')
 
+export type DocumentType = 'factura' | 'presupuesto'
+
 export interface ParsedInvoice {
+  document_type: DocumentType
   invoice_number: string | null
   issue_date: string | null     // YYYY-MM-DD
   client_name: string | null    // proveedor emisor (gastos) o cliente (presupuestos/ingresos)
@@ -14,8 +17,9 @@ export interface ParsedInvoice {
   exchange_rate: number | null
 }
 
-function emptyResult(): ParsedInvoice {
+function emptyResult(documentType: DocumentType = 'factura'): ParsedInvoice {
   return {
+    document_type: documentType,
     invoice_number: null,
     issue_date: null,
     client_name: null,
@@ -143,7 +147,7 @@ function parseArcaFactura(fullText: string): ParsedInvoice {
 // ── Formato 2: presupuesto de texto libre (cotización a un cliente) ──
 // Reconocible por la palabra "presupuesto" sin la estructura de factura ARCA.
 function parsePresupuesto(text: string): ParsedInvoice {
-  const result = emptyResult()
+  const result = emptyResult('presupuesto')
 
   const longDateMatch = text.match(/(\d{1,2}) de ([a-záéíóú]+) de (\d{4})/i)
   if (longDateMatch) {
@@ -156,13 +160,16 @@ function parsePresupuesto(text: string): ParsedInvoice {
   const espacioMatch = text.match(/ESPACIO\s*:\s*([^\n]+)/i)
   if (espacioMatch) result.detail = espacioMatch[1].trim()
 
+  // El monto de un presupuesto es un total único, sin desglose de IVA. Por default lo
+  // tratamos como "sin factura" (neto = total, sin impuestos); el 21% queda como sugerencia
+  // para cuando el usuario marque "con factura" y el frontend recalcule el desglose.
   const costMatch = text.match(/costo de\s*:?\s*\$\s*([\d.,]+)/i)
   if (costMatch) {
     const total = parseNumAR(costMatch[1])
     result.total_amount = total
     result.base_amount = total
     result.iva_amount = 0
-    result.iva_rate = 0
+    result.iva_rate = 0.21
   }
 
   return result

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { EventSummary } from '@/types'
@@ -9,7 +9,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell,
 } from 'recharts'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 
 const MONTH_SHORT = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 const COLORS = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#65a30d', '#4f46e5', '#ea580c']
@@ -23,6 +23,7 @@ function monthsOfYear(year: number) {
 
 export default function CashFlowPage() {
   const [year, setYear] = useState(() => new Date().getFullYear())
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   const { data: events, isLoading } = useQuery({
     queryKey: ['events'],
@@ -89,6 +90,46 @@ export default function CashFlowPage() {
       .map(([label, r]) => ({ label, ...r }))
       .sort((a, b) => (a.kind === b.kind ? a.label.localeCompare(b.label) : a.kind === 'ingreso' ? -1 : 1))
   }, [yearEvents])
+
+  // Desglose por cliente de las categorías de ingreso (Precio Servicio, Seña, Saldo),
+  // para poder desplegar cada fila y ver qué clientes componen ese total.
+  const clientBreakdownByCategory = useMemo(() => {
+    const byCategory = new Map<string, Map<string, Record<string, number>>>()
+    for (const ev of yearEvents) {
+      const monthKey = ev.event_date.slice(0, 7)
+      const clientName = ev.client?.name ?? 'Sin cliente'
+      for (const line of ev.lines.filter(l => l.kind === 'ingreso')) {
+        if (!byCategory.has(line.category_label)) byCategory.set(line.category_label, new Map())
+        const byClient = byCategory.get(line.category_label)!
+        if (!byClient.has(clientName)) byClient.set(clientName, {})
+        const totals = byClient.get(clientName)!
+        totals[monthKey] = (totals[monthKey] ?? 0) + Number(line.total)
+      }
+    }
+    const result = new Map<string, { client: string; totals: Record<string, number> }[]>()
+    for (const [category, byClient] of byCategory) {
+      result.set(
+        category,
+        Array.from(byClient.entries())
+          .map(([client, totals]) => ({ client, totals }))
+          .sort((a, b) => {
+            const totalA = Object.values(a.totals).reduce((s, v) => s + v, 0)
+            const totalB = Object.values(b.totals).reduce((s, v) => s + v, 0)
+            return totalB - totalA
+          })
+      )
+    }
+    return result
+  }, [yearEvents])
+
+  function toggleExpanded(category: string) {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(category)) next.delete(category)
+      else next.add(category)
+      return next
+    })
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -203,18 +244,42 @@ export default function CashFlowPage() {
                 <tbody className="divide-y divide-gray-100">
                   {categoryRows.map(row => {
                     const rowTotal = Object.values(row.totals).reduce((s, v) => s + v, 0)
+                    const clientRows = clientBreakdownByCategory.get(row.label) ?? []
+                    const canExpand = row.kind === 'ingreso' && clientRows.length > 0
+                    const isOpen = expanded.has(row.label)
                     return (
-                      <tr key={row.label} className="hover:bg-gray-50">
-                        <td className={`px-3 py-2 sticky left-0 bg-white font-medium whitespace-nowrap ${row.kind === 'ingreso' ? 'text-green-700' : 'text-gray-800'}`}>
-                          {row.label}
-                        </td>
-                        {months.map(m => (
-                          <td key={m.key} className="px-3 py-2 text-right whitespace-nowrap text-gray-600">
-                            {row.totals[m.key] ? formatARS(row.totals[m.key]) : '—'}
+                      <Fragment key={row.label}>
+                        <tr className="hover:bg-gray-50">
+                          <td className={`px-3 py-2 sticky left-0 bg-white font-medium whitespace-nowrap ${row.kind === 'ingreso' ? 'text-green-700' : 'text-gray-800'}`}>
+                            {canExpand ? (
+                              <button onClick={() => toggleExpanded(row.label)} className="flex items-center gap-1 hover:underline">
+                                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                                {row.label}
+                              </button>
+                            ) : row.label}
                           </td>
-                        ))}
-                        <td className="px-3 py-2 text-right whitespace-nowrap font-semibold text-gray-900">{formatARS(rowTotal)}</td>
-                      </tr>
+                          {months.map(m => (
+                            <td key={m.key} className="px-3 py-2 text-right whitespace-nowrap text-gray-600">
+                              {row.totals[m.key] ? formatARS(row.totals[m.key]) : '—'}
+                            </td>
+                          ))}
+                          <td className="px-3 py-2 text-right whitespace-nowrap font-semibold text-gray-900">{formatARS(rowTotal)}</td>
+                        </tr>
+                        {canExpand && isOpen && clientRows.map(({ client, totals }) => {
+                          const clientTotal = Object.values(totals).reduce((s, v) => s + v, 0)
+                          return (
+                            <tr key={`${row.label}-${client}`} className="bg-gray-50/60">
+                              <td className="px-3 py-1.5 pl-9 sticky left-0 bg-gray-50/60 text-gray-500 whitespace-nowrap">{client}</td>
+                              {months.map(m => (
+                                <td key={m.key} className="px-3 py-1.5 text-right whitespace-nowrap text-gray-400">
+                                  {totals[m.key] ? formatARS(totals[m.key]) : '—'}
+                                </td>
+                              ))}
+                              <td className="px-3 py-1.5 text-right whitespace-nowrap text-gray-500">{formatARS(clientTotal)}</td>
+                            </tr>
+                          )
+                        })}
+                      </Fragment>
                     )
                   })}
                   {categoryRows.length === 0 && (

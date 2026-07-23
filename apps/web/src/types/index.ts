@@ -88,6 +88,7 @@ export interface LineCategory {
 }
 
 export interface ParsedInvoice {
+  document_type: 'factura' | 'presupuesto'
   invoice_number: string | null
   issue_date: string | null
   client_name: string | null

@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { EventDetail, EventLine, LineKind } from '@/types'
-import { formatARS, formatUSD, toUsd } from '@/lib/format'
+import { formatARS, formatUSD, formatDate, toUsd } from '@/lib/format'
 import { ProviderSelect } from '@/components/ProviderSelect'
 import { ClientSelect } from '@/components/ClientSelect'
 import { LocationPicker } from '@/components/LocationPicker'
@@ -13,7 +13,8 @@ import { CurrencyInput } from '@/components/CurrencyInput'
 import { PaymentModal } from '@/components/PaymentModal'
 import { InvoiceModal } from '@/components/InvoiceModal'
 import { AddLineModal } from '@/components/AddLineModal'
-import { ArrowLeft, FileText, CheckCircle2, Circle, ExternalLink, Plus, Trash2 } from 'lucide-react'
+import { PdfPreviewModal } from '@/components/PdfPreviewModal'
+import { ArrowLeft, FileText, Pencil, CheckCircle2, Circle, Undo2, ExternalLink, Plus, Trash2 } from 'lucide-react'
 
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -23,6 +24,7 @@ export default function EventDetailPage() {
   const [paymentLine, setPaymentLine] = useState<EventLine | null>(null)
   const [invoiceLine, setInvoiceLine] = useState<EventLine | null>(null)
   const [addLineKind, setAddLineKind] = useState<LineKind | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
   const { data: event, isLoading } = useQuery({
     queryKey: ['event', id],
@@ -99,7 +101,11 @@ export default function EventDetailPage() {
 
   async function openAttachment(path: string, bucket: 'facturas' | 'comprobantes') {
     const res = await api.get('/api/invoices/sign', { params: { bucket, path } })
-    window.open(res.data.url, '_blank')
+    setPreviewUrl(res.data.url)
+  }
+
+  function undoPayment(lineId: string) {
+    statusMutation.mutate({ lineId, data: { status: 'pendiente' } })
   }
 
   if (isLoading || !event) {
@@ -168,6 +174,7 @@ export default function EventDetailPage() {
           exchangeRate={event.exchange_rate}
           onUpdateLine={(lineId, data) => updateLineMutation.mutate({ lineId, data })}
           onOpenPayment={setPaymentLine}
+          onUndoPayment={undoPayment}
           onOpenInvoice={setInvoiceLine}
           onOpenAttachment={openAttachment}
           onAddLine={() => setAddLineKind('ingreso')}
@@ -182,6 +189,7 @@ export default function EventDetailPage() {
           exchangeRate={event.exchange_rate}
           onUpdateLine={(lineId, data) => updateLineMutation.mutate({ lineId, data })}
           onOpenPayment={setPaymentLine}
+          onUndoPayment={undoPayment}
           onOpenInvoice={setInvoiceLine}
           onOpenAttachment={openAttachment}
           onAddLine={() => setAddLineKind('gasto')}
@@ -224,12 +232,14 @@ export default function EventDetailPage() {
           onSubmit={(categoryLabel) => addLineMutation.mutate({ event_id: event.id, kind: addLineKind, category_label: categoryLabel })}
         />
       )}
+
+      {previewUrl && <PdfPreviewModal url={previewUrl} onClose={() => setPreviewUrl(null)} />}
     </div>
   )
 }
 
 function LinesTable({
-  title, kind, lines, exchangeRate, onUpdateLine, onOpenPayment, onOpenInvoice, onOpenAttachment, onAddLine, onDeleteLine, total,
+  title, kind, lines, exchangeRate, onUpdateLine, onOpenPayment, onUndoPayment, onOpenInvoice, onOpenAttachment, onAddLine, onDeleteLine, total,
 }: {
   title: string
   kind: LineKind
@@ -237,6 +247,7 @@ function LinesTable({
   exchangeRate: number | null
   onUpdateLine: (lineId: string, data: Record<string, unknown>) => void
   onOpenPayment: (line: EventLine) => void
+  onUndoPayment: (lineId: string) => void
   onOpenInvoice: (line: EventLine) => void
   onOpenAttachment: (path: string, bucket: 'facturas' | 'comprobantes') => void
   onAddLine: () => void
@@ -262,6 +273,8 @@ function LinesTable({
             <th className="text-right px-4 py-2 font-medium w-28">Dólares</th>
             <th className="text-center px-4 py-2 font-medium w-24">Factura</th>
             <th className="text-center px-4 py-2 font-medium w-28">Estado</th>
+            <th className="text-left px-4 py-2 font-medium">Fecha de pago</th>
+            <th className="text-left px-4 py-2 font-medium">Forma de pago</th>
             <th className="px-2 py-2 w-8"></th>
           </tr>
         </thead>
@@ -274,6 +287,7 @@ function LinesTable({
               exchangeRate={exchangeRate}
               onUpdateLine={onUpdateLine}
               onOpenPayment={onOpenPayment}
+              onUndoPayment={onUndoPayment}
               onOpenInvoice={onOpenInvoice}
               onOpenAttachment={onOpenAttachment}
               onDeleteLine={onDeleteLine}
@@ -286,7 +300,7 @@ function LinesTable({
             <td></td>
             <td className="px-4 py-2 text-right whitespace-nowrap">{formatARS(total)}</td>
             <td className="px-4 py-2 text-right whitespace-nowrap text-gray-500 text-xs">{exchangeRate ? formatUSD(total / exchangeRate) : '—'}</td>
-            <td colSpan={3}></td>
+            <td colSpan={5}></td>
           </tr>
         </tfoot>
       </table>
@@ -295,18 +309,28 @@ function LinesTable({
 }
 
 function LineRow({
-  line, kind, exchangeRate, onUpdateLine, onOpenPayment, onOpenInvoice, onOpenAttachment, onDeleteLine,
+  line, kind, exchangeRate, onUpdateLine, onOpenPayment, onUndoPayment, onOpenInvoice, onOpenAttachment, onDeleteLine,
 }: {
   line: EventLine
   kind: LineKind
   exchangeRate: number | null
   onUpdateLine: (lineId: string, data: Record<string, unknown>) => void
   onOpenPayment: (line: EventLine) => void
+  onUndoPayment: (lineId: string) => void
   onOpenInvoice: (line: EventLine) => void
   onOpenAttachment: (path: string, bucket: 'facturas' | 'comprobantes') => void
   onDeleteLine: (lineId: string) => void
 }) {
-  const usd = exchangeRate ? line.total / exchangeRate : null
+  const [confirmingUndo, setConfirmingUndo] = useState(false)
+
+  // Si la línea viene de una factura en USD, el monto en dólares es el original de esa
+  // factura (ya convertido a pesos con su propio tipo de cambio) — no se recalcula con el
+  // tipo de cambio general del evento.
+  const usd = line.invoice_currency === 'USD' && line.invoice_exchange_rate
+    ? line.total / line.invoice_exchange_rate
+    : (exchangeRate ? line.total / exchangeRate : null)
+
+  const invoiceButtonLabel = line.category_label === 'Precio Servicio' ? 'Cargar (Presupuesto)' : 'Cargar'
 
   return (
     <tr className="hover:bg-gray-50">
@@ -333,16 +357,24 @@ function LineRow({
       <td className="px-4 py-2 text-right whitespace-nowrap font-medium text-gray-800">{formatARS(line.total)}</td>
       <td className="px-4 py-2 text-right whitespace-nowrap text-gray-500 text-xs">{usd != null ? formatUSD(usd) : '—'}</td>
       <td className="px-4 py-2 text-center">
-        {line.has_invoice ? (
+        <div className="flex items-center justify-center gap-2">
+          {line.has_invoice && (
+            <button
+              onClick={() => line.invoice_pdf_url && onOpenAttachment(line.invoice_pdf_url, 'facturas')}
+              className="inline-flex items-center gap-1 text-xs text-green-700 hover:underline"
+              title="Ver documento"
+            >
+              <FileText className="w-3.5 h-3.5" /> Sí
+            </button>
+          )}
           <button
-            onClick={() => line.invoice_pdf_url && onOpenAttachment(line.invoice_pdf_url, 'facturas')}
-            className="inline-flex items-center gap-1 text-xs text-green-700 hover:underline"
+            onClick={() => onOpenInvoice(line)}
+            className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+            title={line.has_invoice ? 'Editar / reemplazar' : invoiceButtonLabel}
           >
-            <FileText className="w-3.5 h-3.5" /> Sí
+            {line.has_invoice ? <Pencil className="w-3 h-3" /> : invoiceButtonLabel}
           </button>
-        ) : (
-          <button onClick={() => onOpenInvoice(line)} className="text-xs text-blue-600 hover:underline">Cargar</button>
-        )}
+        </div>
       </td>
       <td className="px-4 py-2 text-center">
         <button
@@ -352,16 +384,33 @@ function LineRow({
           {line.status === 'pagado' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />}
           {line.status === 'pagado' ? 'Pagado' : 'Pendiente'}
         </button>
-        {line.status === 'pagado' && (line.receipt_url || line.retention_url) && (
-          <div className="flex justify-center gap-2 mt-1">
+        {line.status === 'pagado' && (
+          <div className="flex justify-center items-center gap-2 mt-1">
             {line.receipt_url && (
               <button onClick={() => onOpenAttachment(line.receipt_url!, 'comprobantes')} title="Ver comprobante" className="text-gray-400 hover:text-blue-600">
                 <ExternalLink className="w-3 h-3" />
               </button>
             )}
+            {line.retention_url && (
+              <button onClick={() => onOpenAttachment(line.retention_url!, 'comprobantes')} title="Ver retención" className="text-gray-400 hover:text-blue-600">
+                <ExternalLink className="w-3 h-3" />
+              </button>
+            )}
+            {confirmingUndo ? (
+              <span className="flex items-center gap-1 text-xs">
+                <button onClick={() => { onUndoPayment(line.id); setConfirmingUndo(false) }} className="text-red-600 hover:underline">Sí</button>
+                <button onClick={() => setConfirmingUndo(false)} className="text-gray-400 hover:underline">No</button>
+              </span>
+            ) : (
+              <button onClick={() => setConfirmingUndo(true)} title="Deshacer pago" className="text-gray-400 hover:text-red-600">
+                <Undo2 className="w-3 h-3" />
+              </button>
+            )}
           </div>
         )}
       </td>
+      <td className="px-4 py-2 text-gray-600 whitespace-nowrap">{line.status === 'pagado' ? formatDate(line.payment_date) : '—'}</td>
+      <td className="px-4 py-2 text-gray-600 whitespace-nowrap">{line.status === 'pagado' ? (line.payment_method || '—') : '—'}</td>
       <td className="px-2 py-2 text-center">
         <button onClick={() => onDeleteLine(line.id)} className="text-gray-300 hover:text-red-600" title="Eliminar línea">
           <Trash2 className="w-3.5 h-3.5" />
