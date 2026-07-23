@@ -320,14 +320,14 @@ function LineRow({
         <CurrencyInput
           value={line.neto}
           onCommit={(v) => onUpdateLine(line.id, { neto: v })}
-          className="w-full px-2 py-1 text-right text-sm border border-transparent hover:border-gray-200 focus:border-blue-400 rounded focus:outline-none"
+          className="w-full min-w-[110px] px-2 py-1 text-right text-sm border border-transparent hover:border-gray-200 focus:border-blue-400 rounded focus:outline-none"
         />
       </td>
       <td className="px-2 py-2">
         <CurrencyInput
           value={line.impuestos}
           onCommit={(v) => onUpdateLine(line.id, { impuestos: v })}
-          className="w-full px-2 py-1 text-right text-sm border border-transparent hover:border-gray-200 focus:border-blue-400 rounded focus:outline-none"
+          className="w-full min-w-[110px] px-2 py-1 text-right text-sm border border-transparent hover:border-gray-200 focus:border-blue-400 rounded focus:outline-none"
         />
       </td>
       <td className="px-4 py-2 text-right whitespace-nowrap font-medium text-gray-800">{formatARS(line.total)}</td>
