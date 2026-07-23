@@ -99,6 +99,20 @@ export default function EventDetailPage() {
     onSuccess: invalidate,
   })
 
+  const deleteEventMutation = useMutation({
+    mutationFn: () => api.delete(`/api/events/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] })
+      router.push('/eventos')
+    },
+  })
+
+  function handleDeleteEvent() {
+    if (confirm('¿Eliminar este evento? Esta acción no se puede deshacer.')) {
+      deleteEventMutation.mutate()
+    }
+  }
+
   async function openAttachment(path: string, bucket: 'facturas' | 'comprobantes') {
     const res = await api.get('/api/invoices/sign', { params: { bucket, path } })
     setPreviewUrl(res.data.url)
@@ -114,7 +128,11 @@ export default function EventDetailPage() {
 
   const ingresos = event.event_lines.filter(l => l.kind === 'ingreso')
   const gastos = event.event_lines.filter(l => l.kind === 'gasto')
-  const totalIngresos = ingresos.reduce((s, l) => s + Number(l.total), 0)
+  // "Precio Servicio" es el monto cotizado total, ya compuesto por Seña + Saldo —
+  // no se suma aparte para no duplicar el ingreso.
+  const totalIngresos = ingresos
+    .filter(l => l.category_label !== 'Precio Servicio')
+    .reduce((s, l) => s + Number(l.total), 0)
   const totalGastos = gastos.reduce((s, l) => s + Number(l.total), 0)
   const resultado = totalIngresos - totalGastos
   const resultadoUsd = toUsd(resultado, event.exchange_rate)
@@ -122,19 +140,24 @@ export default function EventDetailPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <button onClick={() => router.push('/eventos')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-3">
-          <ArrowLeft className="w-4 h-4" /> Eventos
-        </button>
-        <div className="flex items-start justify-between">
-          <div>
+        <div className="flex items-center justify-between mb-3">
+          <button onClick={() => router.push('/eventos')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800">
+            <ArrowLeft className="w-4 h-4" /> Eventos
+          </button>
+          <button onClick={handleDeleteEvent} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-600">
+            <Trash2 className="w-4 h-4" /> Eliminar evento
+          </button>
+        </div>
+        <div className="flex items-start justify-between gap-6">
+          <div className="flex-1 min-w-0">
             <label className="block text-xs text-gray-500 mb-1">Cliente</label>
             <ClientSelect
               value={event.client_id}
               onChange={(client_id) => updateEventMutation.mutate({ client_id })}
-              className="text-lg font-semibold text-gray-900 border-none bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1 -mx-1"
+              className="w-full text-lg font-semibold text-gray-900 border-none bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1 -mx-1"
             />
           </div>
-          <div className="text-right">
+          <div className="text-right shrink-0">
             <label className="block text-xs text-gray-500 mb-1">Fecha del evento</label>
             <input
               type="date"
@@ -274,8 +297,8 @@ function LinesTable({
             <th className="text-right px-4 py-2 font-medium w-28">Dólares</th>
             <th className="text-center px-4 py-2 font-medium w-24">Factura</th>
             <th className="text-center px-4 py-2 font-medium w-28">Estado</th>
-            <th className="text-left px-4 py-2 font-medium">Fecha de pago</th>
-            <th className="text-left px-4 py-2 font-medium">Forma de pago</th>
+            <th className="text-left px-4 py-2 font-medium">{kind === 'ingreso' ? 'Fecha de cobro' : 'Fecha de pago'}</th>
+            <th className="text-left px-4 py-2 font-medium">{kind === 'ingreso' ? 'Forma de cobro' : 'Forma de pago'}</th>
             <th className="px-2 py-2 w-8"></th>
           </tr>
         </thead>
@@ -332,7 +355,8 @@ function LineRow({
     ? line.total / line.invoice_exchange_rate
     : (exchangeRate ? line.total / exchangeRate : null)
 
-  const invoiceButtonLabel = line.category_label === 'Precio Servicio' ? 'Cargar (Presupuesto)' : 'Cargar'
+  const isPrecioServicio = line.category_label === 'Precio Servicio'
+  const invoiceButtonLabel = isPrecioServicio ? 'Cargar (Presupuesto)' : 'Cargar'
 
   return (
     <tr className="hover:bg-gray-50">
@@ -379,14 +403,18 @@ function LineRow({
         </div>
       </td>
       <td className="px-4 py-2 text-center">
+        {isPrecioServicio ? (
+          <span className="text-xs text-gray-300">—</span>
+        ) : (
         <button
           onClick={() => onOpenPayment(line)}
           className={`inline-flex items-center gap-1 text-xs font-medium ${line.status === 'pagado' ? 'text-green-700' : 'text-gray-500'}`}
         >
           {line.status === 'pagado' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />}
-          {line.status === 'pagado' ? 'Pagado' : 'Pendiente'}
+          {line.status === 'pagado' ? (kind === 'ingreso' ? 'Cobrado' : 'Pagado') : 'Pendiente'}
         </button>
-        {line.status === 'pagado' && (
+        )}
+        {!isPrecioServicio && line.status === 'pagado' && (
           <div className="flex justify-center items-center gap-2 mt-1">
             {line.receipt_url && (
               <button onClick={() => onOpenAttachment(line.receipt_url!, 'comprobantes')} title="Ver comprobante" className="text-gray-400 hover:text-blue-600">
@@ -411,8 +439,8 @@ function LineRow({
           </div>
         )}
       </td>
-      <td className="px-4 py-2 text-gray-600 whitespace-nowrap">{line.status === 'pagado' ? formatDate(line.payment_date) : '—'}</td>
-      <td className="px-4 py-2 text-gray-600 whitespace-nowrap">{line.status === 'pagado' ? (line.payment_method || '—') : '—'}</td>
+      <td className="px-4 py-2 text-gray-600 whitespace-nowrap">{!isPrecioServicio && line.status === 'pagado' ? formatDate(line.payment_date) : '—'}</td>
+      <td className="px-4 py-2 text-gray-600 whitespace-nowrap">{!isPrecioServicio && line.status === 'pagado' ? (line.payment_method || '—') : '—'}</td>
       <td className="px-2 py-2 text-center">
         <button onClick={() => onDeleteLine(line.id)} className="text-gray-300 hover:text-red-600" title="Eliminar línea">
           <Trash2 className="w-3.5 h-3.5" />

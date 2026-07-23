@@ -12,10 +12,14 @@ router.get('/', async (_req, res) => {
   if (error) return res.status(500).json({ error: error.message })
 
   // Compute a quick summary (ingresos - gastos) per event for the list view;
-  // keep slim per-line data too, for the cash flow breakdown by category
+  // keep slim per-line data too, for the cash flow breakdown by category.
+  // "Precio Servicio" es informativo (el monto total cotizado) y ya está compuesto
+  // por Seña + Saldo — no se suma aparte para no duplicar el ingreso.
   const withResult = (data ?? []).map(ev => {
     const lines = (ev as any).event_lines ?? []
-    const ingresos = lines.filter((l: any) => l.kind === 'ingreso').reduce((s: number, l: any) => s + Number(l.total), 0)
+    const ingresos = lines
+      .filter((l: any) => l.kind === 'ingreso' && l.category_label !== 'Precio Servicio')
+      .reduce((s: number, l: any) => s + Number(l.total), 0)
     const gastos = lines.filter((l: any) => l.kind === 'gasto').reduce((s: number, l: any) => s + Number(l.total), 0)
     const { event_lines, ...rest } = ev as any
     return { ...rest, lines, ingresos, gastos, resultado: ingresos - gastos }

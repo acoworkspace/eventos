@@ -150,6 +150,27 @@ export default function CashFlowPage() {
     return result
   }, [yearEvents])
 
+  // Totalizador de abajo: Ingresos - Egresos por mes. "Precio Servicio" no se suma
+  // como ingreso porque ya está compuesto por Seña + Saldo — sumarlo duplicaría el ingreso.
+  const netByMonth = useMemo(() => {
+    const perMonth = new Map(months.map(m => [m.key, { ingresos: 0, gastos: 0 }]))
+    for (const row of categoryRows) {
+      if (row.label === 'Precio Servicio') continue
+      for (const [monthKey, cell] of Object.entries(row.totals)) {
+        const bucket = perMonth.get(monthKey)
+        if (!bucket) continue
+        if (row.kind === 'ingreso') bucket.ingresos += cell.total
+        else bucket.gastos += cell.total
+      }
+    }
+    return perMonth
+  }, [categoryRows, months])
+
+  const netGrandTotal = useMemo(
+    () => Array.from(netByMonth.values()).reduce((s, v) => s + (v.ingresos - v.gastos), 0),
+    [netByMonth]
+  )
+
   function toggleExpanded(category: string) {
     setExpanded(prev => {
       const next = new Set(prev)
@@ -328,6 +349,23 @@ export default function CashFlowPage() {
                     <tr><td colSpan={months.length * 3 + 4} className="px-3 py-8 text-center text-gray-400">No hay eventos en {year}.</td></tr>
                   )}
                 </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold text-gray-900">
+                    <td className="px-3 py-2 sticky left-0 bg-gray-50 whitespace-nowrap">Neto (Ingresos - Egresos)</td>
+                    {months.map(m => {
+                      const bucket = netByMonth.get(m.key)
+                      const net = bucket ? bucket.ingresos - bucket.gastos : 0
+                      return (
+                        <td key={m.key} colSpan={3} className={`px-3 py-2 text-right whitespace-nowrap border-l border-gray-200 ${net >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                          {net ? formatARS(net) : '—'}
+                        </td>
+                      )
+                    })}
+                    <td colSpan={3} className={`px-3 py-2 text-right whitespace-nowrap border-l border-gray-200 ${netGrandTotal >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                      {formatARS(netGrandTotal)}
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </>

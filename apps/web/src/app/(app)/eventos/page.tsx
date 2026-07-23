@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { MouseEvent, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
@@ -8,7 +8,7 @@ import { EventSummary } from '@/types'
 import { formatARS, formatDate } from '@/lib/format'
 import { ClientSelect } from '@/components/ClientSelect'
 import { LocationPicker } from '@/components/LocationPicker'
-import { Plus, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Loader2, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -66,6 +66,18 @@ export default function EventosPage() {
     },
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: (eventId: string) => api.delete(`/api/events/${eventId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['events'] }),
+  })
+
+  function handleDelete(e: MouseEvent, eventId: string) {
+    e.stopPropagation()
+    if (confirm('¿Eliminar este evento? Esta acción no se puede deshacer.')) {
+      deleteMutation.mutate(eventId)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <main className="max-w-5xl mx-auto px-6 py-8">
@@ -110,14 +122,15 @@ export default function EventosPage() {
                 <th className="text-left px-4 py-3 font-medium">Fecha</th>
                 <th className="text-left px-4 py-3 font-medium">Lugar</th>
                 <th className="text-right px-4 py-3 font-medium">Resultado</th>
+                <th className="px-2 py-3 w-8"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {isLoading && (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">Cargando...</td></tr>
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">Cargando...</td></tr>
               )}
               {!isLoading && monthEvents.length === 0 && (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">No hay eventos en {monthLabel}.</td></tr>
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">No hay eventos en {monthLabel}.</td></tr>
               )}
               {monthEvents.map(ev => (
                 <tr
@@ -130,6 +143,11 @@ export default function EventosPage() {
                   <td className="px-4 py-3 text-gray-600">{ev.location || '—'}</td>
                   <td className={`px-4 py-3 text-right font-medium ${ev.resultado >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                     {formatARS(ev.resultado)}
+                  </td>
+                  <td className="px-2 py-3 text-center">
+                    <button onClick={(e) => handleDelete(e, ev.id)} className="text-gray-300 hover:text-red-600" title="Eliminar evento">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </td>
                 </tr>
               ))}
