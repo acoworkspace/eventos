@@ -6,7 +6,7 @@ import api from '@/lib/api'
 import { EventSummary } from '@/types'
 import { formatARS } from '@/lib/format'
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList,
   PieChart, Pie, Cell,
 } from 'recharts'
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
@@ -54,13 +54,24 @@ function monthsOfYear(year: number) {
   }))
 }
 
-const METRICS = ['ambos', 'Ingresos', 'Gastos', 'Neto'] as const
-type Metric = typeof METRICS[number]
+const SERIES = ['Ingresos', 'Gastos', 'Neto'] as const
+type Series = typeof SERIES[number]
+const SERIES_COLOR: Record<Series, string> = { Ingresos: '#16a34a', Gastos: '#dc2626', Neto: '#2563eb' }
+const SERIES_LABEL: Record<Series, string> = { Ingresos: 'Ingresos', Gastos: 'Costos', Neto: 'Neto' }
 
 export default function CashFlowPage() {
   const [year, setYear] = useState(() => new Date().getFullYear())
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  const [metric, setMetric] = useState<Metric>('ambos')
+  const [selectedSeries, setSelectedSeries] = useState<Set<Series>>(new Set(SERIES))
+
+  function toggleSeries(s: Series) {
+    setSelectedSeries(prev => {
+      const next = new Set(prev)
+      if (next.has(s) && next.size > 1) next.delete(s)
+      else next.add(s)
+      return next
+    })
+  }
 
   const { data: events, isLoading } = useQuery({
     queryKey: ['events'],
@@ -84,20 +95,22 @@ export default function CashFlowPage() {
     })
   }, [months, yearEvents])
 
-  function renderVariationLabel(props: any) {
-    const { x, y, width, index, value } = props
-    if (metric === 'ambos' || index === 0) return <Fragment key={index} />
-    const prevValue = trend[index - 1][metric]
-    const diff = value - prevValue
-    if (diff === 0) return <Fragment key={index} />
-    const pct = prevValue !== 0 ? Math.round((diff / Math.abs(prevValue)) * 100) : null
-    const text = `${diff >= 0 ? '+' : ''}${pct !== null ? `${pct}%` : formatARS(diff)}`
-    const color = diff >= 0 ? '#16a34a' : '#dc2626'
-    return (
-      <text key={index} x={x + width / 2} y={Math.max(10, y - 6)} textAnchor="middle" fontSize={10} fontWeight={600} fill={color}>
-        {text}
-      </text>
-    )
+  function makeVariationLabel(series: Series) {
+    return function renderVariationLabel(props: any) {
+      const { x, y, width, index, value } = props
+      if (index === 0) return <Fragment key={index} />
+      const prevValue = trend[index - 1][series]
+      const diff = value - prevValue
+      if (diff === 0) return <Fragment key={index} />
+      const pct = prevValue !== 0 ? Math.round((diff / Math.abs(prevValue)) * 100) : null
+      const text = `${diff >= 0 ? '+' : ''}${pct !== null ? `${pct}%` : formatARS(diff)}`
+      const color = diff >= 0 ? '#16a34a' : '#dc2626'
+      return (
+        <text key={index} x={x + width / 2} y={Math.max(10, y - 6)} textAnchor="middle" fontSize={10} fontWeight={600} fill={color}>
+          {text}
+        </text>
+      )
+    }
   }
 
   // Category breakdown (gastos) for the whole year
@@ -255,13 +268,19 @@ export default function CashFlowPage() {
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-sm font-semibold text-gray-700">Tendencia mensual</h2>
                   <div className="flex items-center gap-1.5">
-                    {METRICS.map(opt => (
+                    <button
+                      onClick={() => setSelectedSeries(new Set(SERIES))}
+                      className={`px-2.5 py-1 text-xs rounded-full border ${selectedSeries.size === SERIES.length ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                    >
+                      Todos
+                    </button>
+                    {SERIES.map(s => (
                       <button
-                        key={opt}
-                        onClick={() => setMetric(opt)}
-                        className={`px-2.5 py-1 text-xs rounded-full border ${metric === opt ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                        key={s}
+                        onClick={() => toggleSeries(s)}
+                        className={`px-2.5 py-1 text-xs rounded-full border ${selectedSeries.has(s) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
                       >
-                        {opt === 'ambos' ? 'Todos' : opt === 'Gastos' ? 'Costos' : opt}
+                        {SERIES_LABEL[s]}
                       </button>
                     ))}
                   </div>
@@ -274,19 +293,11 @@ export default function CashFlowPage() {
                       <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                       <Tooltip formatter={(v: any) => formatARS(Number(v))} />
                       <Legend />
-                      {metric === 'ambos' && (
-                        <>
-                          <Bar dataKey="Ingresos" fill="#16a34a" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="Gastos" fill="#dc2626" radius={[4, 4, 0, 0]} />
-                        </>
-                      )}
-                      {metric !== 'ambos' && (
-                        <Bar dataKey={metric} radius={[4, 4, 0, 0]} label={renderVariationLabel}>
-                          {trend.map((d, i) => (
-                            <Cell key={i} fill={metric === 'Gastos' ? '#dc2626' : d[metric] >= 0 ? '#16a34a' : '#dc2626'} />
-                          ))}
+                      {SERIES.filter(s => selectedSeries.has(s)).map(s => (
+                        <Bar key={s} dataKey={s} name={SERIES_LABEL[s]} fill={SERIES_COLOR[s]} radius={[4, 4, 0, 0]}>
+                          <LabelList dataKey={s} content={makeVariationLabel(s)} />
                         </Bar>
-                      )}
+                      ))}
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -398,7 +409,7 @@ export default function CashFlowPage() {
                           </tr>
                         )}
                         <tr className={`hover:bg-gray-50 ${row.kind === 'ingreso' ? 'bg-green-50/30' : 'bg-red-50/20'}`}>
-                          <td className={`px-3 py-2 sticky left-0 font-medium whitespace-nowrap ${row.kind === 'ingreso' ? 'bg-green-50/30 text-green-700' : 'bg-red-50/20 text-gray-800'}`}>
+                          <td className={`px-3 py-2 sticky left-0 font-medium whitespace-nowrap ${row.kind === 'ingreso' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-gray-800'}`}>
                             {canExpand ? (
                               <button onClick={() => toggleExpanded(row.label)} className="flex items-center gap-1 hover:underline">
                                 <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
@@ -418,7 +429,7 @@ export default function CashFlowPage() {
                           )
                           return (
                             <tr key={`${row.label}-${client}`} className="bg-gray-50/60">
-                              <td className="px-3 py-1.5 pl-9 sticky left-0 bg-gray-50/60 text-gray-500 whitespace-nowrap">{client}</td>
+                              <td className="px-3 py-1.5 pl-9 sticky left-0 bg-gray-100 text-gray-500 whitespace-nowrap">{client}</td>
                               {months.map(m => (
                                 <CellTds key={m.key} cell={totals[m.key]} className="text-gray-400" borderClassName="border-l border-gray-200" py="py-1.5" />
                               ))}

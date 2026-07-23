@@ -130,9 +130,12 @@ export default function EventDetailPage() {
   const gastos = event.event_lines.filter(l => l.kind === 'gasto')
   // "Precio Servicio" es el monto cotizado total, ya compuesto por Seña + Saldo —
   // no se suma aparte para no duplicar el ingreso.
-  const totalIngresos = ingresos
-    .filter(l => l.category_label !== 'Precio Servicio')
-    .reduce((s, l) => s + Number(l.total), 0)
+  const ingresosParaSumar = ingresos.filter(l => l.category_label !== 'Precio Servicio')
+  const netoIngresos = ingresosParaSumar.reduce((s, l) => s + Number(l.neto), 0)
+  const impuestosIngresos = ingresosParaSumar.reduce((s, l) => s + Number(l.impuestos), 0)
+  const totalIngresos = ingresosParaSumar.reduce((s, l) => s + Number(l.total), 0)
+  const netoGastos = gastos.reduce((s, l) => s + Number(l.neto), 0)
+  const impuestosGastos = gastos.reduce((s, l) => s + Number(l.impuestos), 0)
   const totalGastos = gastos.reduce((s, l) => s + Number(l.total), 0)
   const resultado = totalIngresos - totalGastos
   const resultadoUsd = toUsd(resultado, event.exchange_rate)
@@ -202,6 +205,8 @@ export default function EventDetailPage() {
           onOpenAttachment={openAttachment}
           onAddLine={() => setAddLineKind('ingreso')}
           onDeleteLine={(lineId) => deleteLineMutation.mutate(lineId)}
+          neto={netoIngresos}
+          impuestos={impuestosIngresos}
           total={totalIngresos}
         />
 
@@ -217,6 +222,8 @@ export default function EventDetailPage() {
           onOpenAttachment={openAttachment}
           onAddLine={() => setAddLineKind('gasto')}
           onDeleteLine={(lineId) => deleteLineMutation.mutate(lineId)}
+          neto={netoGastos}
+          impuestos={impuestosGastos}
           total={totalGastos}
         />
 
@@ -262,7 +269,7 @@ export default function EventDetailPage() {
 }
 
 function LinesTable({
-  title, kind, lines, exchangeRate, onUpdateLine, onOpenPayment, onUndoPayment, onOpenInvoice, onOpenAttachment, onAddLine, onDeleteLine, total,
+  title, kind, lines, exchangeRate, onUpdateLine, onOpenPayment, onUndoPayment, onOpenInvoice, onOpenAttachment, onAddLine, onDeleteLine, neto, impuestos, total,
 }: {
   title: string
   kind: LineKind
@@ -275,6 +282,8 @@ function LinesTable({
   onOpenAttachment: (path: string, bucket: 'facturas' | 'comprobantes') => void
   onAddLine: () => void
   onDeleteLine: (lineId: string) => void
+  neto: number
+  impuestos: number
   total: number
 }) {
   return (
@@ -290,7 +299,7 @@ function LinesTable({
         <thead className="text-gray-500 text-xs uppercase">
           <tr>
             <th className="text-left px-4 py-2 font-medium">Concepto</th>
-            {kind === 'gasto' && <th className="text-left px-4 py-2 font-medium">Proveedor</th>}
+            <th className="text-left px-4 py-2 font-medium">Proveedor</th>
             <th className="text-right px-4 py-2 font-medium w-28">Neto</th>
             <th className="text-right px-4 py-2 font-medium w-28">Impuestos</th>
             <th className="text-right px-4 py-2 font-medium w-28">Total</th>
@@ -320,8 +329,9 @@ function LinesTable({
         </tbody>
         <tfoot>
           <tr className="border-t border-gray-200 font-medium text-gray-800">
-            <td className="px-4 py-2" colSpan={kind === 'gasto' ? 3 : 2}>Subtotal</td>
-            <td></td>
+            <td className="px-4 py-2" colSpan={2}>Subtotal</td>
+            <td className="px-4 py-2 text-right whitespace-nowrap">{formatARS(neto)}</td>
+            <td className="px-4 py-2 text-right whitespace-nowrap">{formatARS(impuestos)}</td>
             <td className="px-4 py-2 text-right whitespace-nowrap">{formatARS(total)}</td>
             <td className="px-4 py-2 text-right whitespace-nowrap text-gray-500 text-xs">{exchangeRate ? formatUSD(total / exchangeRate) : '—'}</td>
             <td colSpan={5}></td>
@@ -361,11 +371,11 @@ function LineRow({
   return (
     <tr className="hover:bg-gray-50">
       <td className="px-4 py-2 text-gray-800">{line.category_label}</td>
-      {kind === 'gasto' && (
-        <td className="px-4 py-2 w-40">
+      <td className="px-4 py-2 w-40">
+        {kind === 'gasto' && (
           <ProviderSelect value={line.provider_id} onChange={(providerId) => onUpdateLine(line.id, { provider_id: providerId })} />
-        </td>
-      )}
+        )}
+      </td>
       <td className="px-2 py-2">
         <CurrencyInput
           value={line.neto}
