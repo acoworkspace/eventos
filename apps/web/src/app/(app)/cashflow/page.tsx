@@ -303,7 +303,7 @@ export default function CashFlowPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {categoryRows.map(row => {
+                  {categoryRows.map((row, i) => {
                     const rowTotal = Object.values(row.totals).reduce(
                       (s, v) => ({ neto: s.neto + v.neto, impuestos: s.impuestos + v.impuestos, total: s.total + v.total }),
                       { ...EMPTY_CELL }
@@ -311,10 +311,18 @@ export default function CashFlowPage() {
                     const clientRows = clientBreakdownByCategory.get(row.label) ?? []
                     const canExpand = row.kind === 'ingreso' && clientRows.length > 0
                     const isOpen = expanded.has(row.label)
+                    const isSectionStart = i === 0 || categoryRows[i - 1].kind !== row.kind
                     return (
                       <Fragment key={row.label}>
-                        <tr className="hover:bg-gray-50">
-                          <td className={`px-3 py-2 sticky left-0 bg-white font-medium whitespace-nowrap ${row.kind === 'ingreso' ? 'text-green-700' : 'text-gray-800'}`}>
+                        {isSectionStart && (
+                          <tr>
+                            <td colSpan={months.length * 3 + 4} className={`px-3 py-1 sticky left-0 text-[11px] font-semibold uppercase tracking-wide ${row.kind === 'ingreso' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                              {row.kind === 'ingreso' ? 'Ingresos' : 'Egresos'}
+                            </td>
+                          </tr>
+                        )}
+                        <tr className={`hover:bg-gray-50 ${row.kind === 'ingreso' ? 'bg-green-50/30' : 'bg-red-50/20'}`}>
+                          <td className={`px-3 py-2 sticky left-0 font-medium whitespace-nowrap ${row.kind === 'ingreso' ? 'bg-green-50/30 text-green-700' : 'bg-red-50/20 text-gray-800'}`}>
                             {canExpand ? (
                               <button onClick={() => toggleExpanded(row.label)} className="flex items-center gap-1 hover:underline">
                                 <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
@@ -351,7 +359,7 @@ export default function CashFlowPage() {
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold text-gray-900">
-                    <td className="px-3 py-2 sticky left-0 bg-gray-50 whitespace-nowrap">Neto (Ingresos - Egresos)</td>
+                    <td className="px-3 py-2 sticky left-0 bg-gray-50 whitespace-nowrap">Resultado</td>
                     {months.map(m => {
                       const bucket = netByMonth.get(m.key)
                       const net = bucket ? bucket.ingresos - bucket.gastos : 0
