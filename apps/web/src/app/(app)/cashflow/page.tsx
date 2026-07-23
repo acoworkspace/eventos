@@ -14,6 +14,25 @@ import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 const MONTH_SHORT = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 const COLORS = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#65a30d', '#4f46e5', '#ea580c']
 
+interface Cell { neto: number; impuestos: number; total: number }
+const EMPTY_CELL: Cell = { neto: 0, impuestos: 0, total: 0 }
+
+function CellTds({ cell, className, borderClassName, py = 'py-2' }: {
+  cell: Cell | undefined
+  className: string
+  borderClassName: string
+  py?: string
+}) {
+  const c = cell ?? EMPTY_CELL
+  return (
+    <>
+      <td className={`px-3 ${py} text-right whitespace-nowrap ${borderClassName} ${className}`}>{c.neto ? formatARS(c.neto) : '—'}</td>
+      <td className={`px-3 ${py} text-right whitespace-nowrap ${className}`}>{c.impuestos ? formatARS(c.impuestos) : '—'}</td>
+      <td className={`px-3 ${py} text-right whitespace-nowrap ${className}`}>{c.total ? formatARS(c.total) : '—'}</td>
+    </>
+  )
+}
+
 function monthsOfYear(year: number) {
   return Array.from({ length: 12 }, (_, i) => ({
     key: `${year}-${String(i + 1).padStart(2, '0')}`,
@@ -75,14 +94,19 @@ export default function CashFlowPage() {
       .slice(0, 8)
   }, [yearEvents])
 
-  // Month x category table (both ingreso and gasto categories)
+  // Month x category table (both ingreso and gasto categories) — cada celda separa
+  // neto, impuestos y total, no solo el total.
   const categoryRows = useMemo(() => {
-    const rows = new Map<string, { kind: string; totals: Record<string, number> }>()
+    const rows = new Map<string, { kind: string; totals: Record<string, Cell> }>()
     for (const ev of yearEvents) {
       const monthKey = ev.event_date.slice(0, 7)
       for (const line of ev.lines) {
         const row = rows.get(line.category_label) ?? { kind: line.kind, totals: {} }
-        row.totals[monthKey] = (row.totals[monthKey] ?? 0) + Number(line.total)
+        const cell = row.totals[monthKey] ?? { neto: 0, impuestos: 0, total: 0 }
+        cell.neto += Number(line.neto)
+        cell.impuestos += Number(line.impuestos)
+        cell.total += Number(line.total)
+        row.totals[monthKey] = cell
         rows.set(line.category_label, row)
       }
     }
@@ -94,7 +118,7 @@ export default function CashFlowPage() {
   // Desglose por cliente de las categorías de ingreso (Precio Servicio, Seña, Saldo),
   // para poder desplegar cada fila y ver qué clientes componen ese total.
   const clientBreakdownByCategory = useMemo(() => {
-    const byCategory = new Map<string, Map<string, Record<string, number>>>()
+    const byCategory = new Map<string, Map<string, Record<string, Cell>>>()
     for (const ev of yearEvents) {
       const monthKey = ev.event_date.slice(0, 7)
       const clientName = ev.client?.name ?? 'Sin cliente'
@@ -103,18 +127,22 @@ export default function CashFlowPage() {
         const byClient = byCategory.get(line.category_label)!
         if (!byClient.has(clientName)) byClient.set(clientName, {})
         const totals = byClient.get(clientName)!
-        totals[monthKey] = (totals[monthKey] ?? 0) + Number(line.total)
+        const cell = totals[monthKey] ?? { neto: 0, impuestos: 0, total: 0 }
+        cell.neto += Number(line.neto)
+        cell.impuestos += Number(line.impuestos)
+        cell.total += Number(line.total)
+        totals[monthKey] = cell
       }
     }
-    const result = new Map<string, { client: string; totals: Record<string, number> }[]>()
+    const result = new Map<string, { client: string; totals: Record<string, Cell> }[]>()
     for (const [category, byClient] of byCategory) {
       result.set(
         category,
         Array.from(byClient.entries())
           .map(([client, totals]) => ({ client, totals }))
           .sort((a, b) => {
-            const totalA = Object.values(a.totals).reduce((s, v) => s + v, 0)
-            const totalB = Object.values(b.totals).reduce((s, v) => s + v, 0)
+            const totalA = Object.values(a.totals).reduce((s, v) => s + v.total, 0)
+            const totalB = Object.values(b.totals).reduce((s, v) => s + v.total, 0)
             return totalB - totalA
           })
       )
@@ -236,14 +264,29 @@ export default function CashFlowPage() {
               <table className="w-full text-xs">
                 <thead className="bg-gray-50 text-gray-500 uppercase sticky top-0">
                   <tr>
-                    <th className="text-left px-3 py-2 font-medium sticky left-0 bg-gray-50">Categoría</th>
-                    {months.map(m => <th key={m.key} className="text-right px-3 py-2 font-medium whitespace-nowrap">{m.label}</th>)}
-                    <th className="text-right px-3 py-2 font-medium whitespace-nowrap">Total</th>
+                    <th rowSpan={2} className="text-left px-3 py-2 font-medium sticky left-0 bg-gray-50 align-bottom">Categoría</th>
+                    {months.map(m => <th key={m.key} colSpan={3} className="text-center px-3 py-1 font-medium whitespace-nowrap border-l border-gray-200">{m.label}</th>)}
+                    <th colSpan={3} className="text-center px-3 py-1 font-medium whitespace-nowrap border-l border-gray-200">Total</th>
+                  </tr>
+                  <tr>
+                    {months.map(m => (
+                      <Fragment key={m.key}>
+                        <th className="text-right px-3 py-1 font-normal whitespace-nowrap border-l border-gray-200">Neto</th>
+                        <th className="text-right px-3 py-1 font-normal whitespace-nowrap">Imp.</th>
+                        <th className="text-right px-3 py-1 font-normal whitespace-nowrap">Total</th>
+                      </Fragment>
+                    ))}
+                    <th className="text-right px-3 py-1 font-normal whitespace-nowrap border-l border-gray-200">Neto</th>
+                    <th className="text-right px-3 py-1 font-normal whitespace-nowrap">Imp.</th>
+                    <th className="text-right px-3 py-1 font-normal whitespace-nowrap">Total</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {categoryRows.map(row => {
-                    const rowTotal = Object.values(row.totals).reduce((s, v) => s + v, 0)
+                    const rowTotal = Object.values(row.totals).reduce(
+                      (s, v) => ({ neto: s.neto + v.neto, impuestos: s.impuestos + v.impuestos, total: s.total + v.total }),
+                      { ...EMPTY_CELL }
+                    )
                     const clientRows = clientBreakdownByCategory.get(row.label) ?? []
                     const canExpand = row.kind === 'ingreso' && clientRows.length > 0
                     const isOpen = expanded.has(row.label)
@@ -259,23 +302,22 @@ export default function CashFlowPage() {
                             ) : row.label}
                           </td>
                           {months.map(m => (
-                            <td key={m.key} className="px-3 py-2 text-right whitespace-nowrap text-gray-600">
-                              {row.totals[m.key] ? formatARS(row.totals[m.key]) : '—'}
-                            </td>
+                            <CellTds key={m.key} cell={row.totals[m.key]} className="text-gray-600" borderClassName="border-l border-gray-200" />
                           ))}
-                          <td className="px-3 py-2 text-right whitespace-nowrap font-semibold text-gray-900">{formatARS(rowTotal)}</td>
+                          <CellTds cell={rowTotal} className="font-semibold text-gray-900" borderClassName="border-l border-gray-200" />
                         </tr>
                         {canExpand && isOpen && clientRows.map(({ client, totals }) => {
-                          const clientTotal = Object.values(totals).reduce((s, v) => s + v, 0)
+                          const clientTotal = Object.values(totals).reduce(
+                            (s, v) => ({ neto: s.neto + v.neto, impuestos: s.impuestos + v.impuestos, total: s.total + v.total }),
+                            { ...EMPTY_CELL }
+                          )
                           return (
                             <tr key={`${row.label}-${client}`} className="bg-gray-50/60">
                               <td className="px-3 py-1.5 pl-9 sticky left-0 bg-gray-50/60 text-gray-500 whitespace-nowrap">{client}</td>
                               {months.map(m => (
-                                <td key={m.key} className="px-3 py-1.5 text-right whitespace-nowrap text-gray-400">
-                                  {totals[m.key] ? formatARS(totals[m.key]) : '—'}
-                                </td>
+                                <CellTds key={m.key} cell={totals[m.key]} className="text-gray-400" borderClassName="border-l border-gray-200" py="py-1.5" />
                               ))}
-                              <td className="px-3 py-1.5 text-right whitespace-nowrap text-gray-500">{formatARS(clientTotal)}</td>
+                              <CellTds cell={clientTotal} className="text-gray-500" borderClassName="border-l border-gray-200" py="py-1.5" />
                             </tr>
                           )
                         })}
@@ -283,7 +325,7 @@ export default function CashFlowPage() {
                     )
                   })}
                   {categoryRows.length === 0 && (
-                    <tr><td colSpan={months.length + 2} className="px-3 py-8 text-center text-gray-400">No hay eventos en {year}.</td></tr>
+                    <tr><td colSpan={months.length * 3 + 4} className="px-3 py-8 text-center text-gray-400">No hay eventos en {year}.</td></tr>
                   )}
                 </tbody>
               </table>

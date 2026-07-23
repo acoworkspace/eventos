@@ -13,7 +13,7 @@ export function CurrencyInput({
   const [draft, setDraft] = useState('')
 
   function formatDisplay(n: number) {
-    return `$ ${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    return `$ ${Math.round(n).toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
   }
 
   return (
@@ -29,7 +29,7 @@ export function CurrencyInput({
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => {
         setEditing(false)
-        onCommit(Number(draft.replace(',', '.')) || 0)
+        onCommit(Math.round(Number(draft.replace(',', '.')) || 0))
       }}
       onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
       className={className}

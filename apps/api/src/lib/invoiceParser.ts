@@ -238,13 +238,23 @@ function parseAcoAdminFactura(text: string): ParsedInvoice {
   return result
 }
 
+// Los montos que vienen de un PDF se redondean siempre a pesos enteros — no se muestran centavos.
+function roundAmounts(result: ParsedInvoice): ParsedInvoice {
+  return {
+    ...result,
+    base_amount: result.base_amount != null ? Math.round(result.base_amount) : null,
+    iva_amount: result.iva_amount != null ? Math.round(result.iva_amount) : null,
+    total_amount: result.total_amount != null ? Math.round(result.total_amount) : null,
+  }
+}
+
 export async function parseInvoicePdf(buffer: Buffer): Promise<ParsedInvoice> {
   const { text } = await pdfParse(buffer)
 
   const isArcaFactura = /FACTURA\s*\n[ABC]\s*\nCOD\.\s*\d+/.test(text) || /Punto de Venta:\s*Comp\.\s*Nro/.test(text)
-  if (isArcaFactura) return parseArcaFactura(text)
+  if (isArcaFactura) return roundAmounts(parseArcaFactura(text))
 
-  if (/presupuesto/i.test(text)) return parsePresupuesto(text)
+  if (/presupuesto/i.test(text)) return roundAmounts(parsePresupuesto(text))
 
-  return parseAcoAdminFactura(text)
+  return roundAmounts(parseAcoAdminFactura(text))
 }

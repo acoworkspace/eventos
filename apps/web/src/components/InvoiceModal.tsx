@@ -96,10 +96,11 @@ export function InvoiceModal({
   // El total es la fuente de verdad cuando viene de un presupuesto/factura con un solo monto:
   // si "con factura", ese monto ya incluye el IVA y hay que descomponerlo; si no, neto = total.
   function commitTotal(newTotal: number) {
+    newTotal = Math.round(newTotal)
     setDraft(d => {
       if (!d) return d
       if (d.conFactura) {
-        const neto = newTotal / (1 + d.ivaPercent / 100)
+        const neto = Math.round(newTotal / (1 + d.ivaPercent / 100))
         return { ...d, neto, impuestos: newTotal - neto }
       }
       return { ...d, neto: newTotal, impuestos: 0 }
@@ -111,7 +112,7 @@ export function InvoiceModal({
       if (!d) return d
       const currentTotal = d.neto + d.impuestos
       if (checked) {
-        const neto = currentTotal / (1 + d.ivaPercent / 100)
+        const neto = Math.round(currentTotal / (1 + d.ivaPercent / 100))
         return { ...d, conFactura: true, neto, impuestos: currentTotal - neto }
       }
       return { ...d, conFactura: false, neto: currentTotal, impuestos: 0 }
@@ -123,7 +124,7 @@ export function InvoiceModal({
       if (!d) return d
       if (!d.conFactura) return { ...d, ivaPercent: percent }
       const currentTotal = d.neto + d.impuestos
-      const neto = currentTotal / (1 + percent / 100)
+      const neto = Math.round(currentTotal / (1 + percent / 100))
       return { ...d, ivaPercent: percent, neto, impuestos: currentTotal - neto }
     })
   }
@@ -144,8 +145,8 @@ export function InvoiceModal({
     // Si la factura vino en USD, las columnas en pesos se completan convirtiendo con el
     // tipo de cambio propio de la factura (no el del evento).
     const rate = draft.currency === 'USD' ? (exchangeRate ?? 1) : 1
-    const neto = draft.currency === 'USD' ? draft.neto * rate : draft.neto
-    const impuestos = draft.currency === 'USD' ? draft.impuestos * rate : draft.impuestos
+    const neto = draft.currency === 'USD' ? Math.round(draft.neto * rate) : draft.neto
+    const impuestos = draft.currency === 'USD' ? Math.round(draft.impuestos * rate) : draft.impuestos
 
     onSubmit({
       invoice_pdf_url: pdfUrl,

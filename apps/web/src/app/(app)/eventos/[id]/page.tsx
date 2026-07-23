@@ -262,6 +262,7 @@ function LinesTable({
           <Plus className="w-3.5 h-3.5" /> Agregar línea
         </button>
       </div>
+      <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="text-gray-500 text-xs uppercase">
           <tr>
@@ -304,6 +305,7 @@ function LinesTable({
           </tr>
         </tfoot>
       </table>
+      </div>
     </div>
   )
 }
