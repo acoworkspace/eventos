@@ -98,6 +98,8 @@ export default function CashFlowPage() {
   function makeVariationLabel(series: Series) {
     return function renderVariationLabel(props: any) {
       const { x, y, width, index, value } = props
+      // eslint-disable-next-line no-console
+      console.log('LABEL_DEBUG', series, JSON.stringify({ x, y, width, index, value }))
       if (index === 0) return <Fragment key={index} />
       const prevValue = trend[index - 1][series]
       const diff = value - prevValue
