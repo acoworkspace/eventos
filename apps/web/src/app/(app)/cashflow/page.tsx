@@ -97,18 +97,20 @@ export default function CashFlowPage() {
 
   function makeVariationLabel(series: Series) {
     return function renderVariationLabel(props: any) {
-      const { x, y, width, index, value } = props
-      // eslint-disable-next-line no-console
-      console.log('LABEL_DEBUG', series, JSON.stringify({ x, y, width, index, value }))
-      if (index === 0) return <Fragment key={index} />
-      const prevValue = trend[index - 1][series]
+      const { x, y, width, value, payload } = props
+      // LabelList's own `index` only counts bars that actually have geometry (recharts
+      // drops zero-value bars), so it does NOT match the month's position in `trend`.
+      // Look up the real month via the bar's payload instead.
+      const realIndex = trend.findIndex(t => t.month === payload?.month)
+      if (realIndex <= 0) return <Fragment key={realIndex} />
+      const prevValue = trend[realIndex - 1][series]
       const diff = value - prevValue
-      if (diff === 0) return <Fragment key={index} />
+      if (diff === 0) return <Fragment key={realIndex} />
       const pct = prevValue !== 0 ? Math.round((diff / Math.abs(prevValue)) * 100) : null
       const text = `${diff >= 0 ? '+' : ''}${pct !== null ? `${pct}%` : formatARS(diff)}`
       const color = diff >= 0 ? '#16a34a' : '#dc2626'
       return (
-        <text key={index} x={x + width / 2} y={Math.max(10, y - 6)} textAnchor="middle" fontSize={10} fontWeight={600} fill={color}>
+        <text key={realIndex} x={x + width / 2} y={Math.max(10, y - 6)} textAnchor="middle" fontSize={10} fontWeight={600} fill={color}>
           {text}
         </text>
       )
