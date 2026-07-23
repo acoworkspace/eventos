@@ -96,14 +96,16 @@ export default function CashFlowPage() {
   }, [months, yearEvents])
 
   function makeVariationLabel(series: Series) {
+    // recharts drops zero-value bars before computing rects, so the `index` a LabelList
+    // content function receives only counts bars with a nonzero value for this series —
+    // it does not match the month's position in `trend`. Reconstruct the real position by
+    // filtering `trend` the same way recharts does.
+    const nonZeroTrend = trend.filter(t => t[series] !== 0)
     return function renderVariationLabel(props: any) {
-      const { x, y, width, value, payload } = props
-      console.log('LABEL_DEBUG2', series, JSON.stringify(props))
-      // LabelList's own `index` only counts bars that actually have geometry (recharts
-      // drops zero-value bars), so it does NOT match the month's position in `trend`.
-      // Look up the real month via the bar's payload instead.
-      const realIndex = trend.findIndex(t => t.month === payload?.month)
-      if (realIndex <= 0) return <Fragment key={realIndex} />
+      const { x, y, width, value, index } = props
+      const row = nonZeroTrend[index]
+      const realIndex = row ? trend.indexOf(row) : -1
+      if (realIndex <= 0) return <Fragment key={index} />
       const prevValue = trend[realIndex - 1][series]
       const diff = value - prevValue
       if (diff === 0) return <Fragment key={realIndex} />
