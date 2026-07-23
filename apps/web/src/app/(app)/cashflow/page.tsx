@@ -98,6 +98,7 @@ export default function CashFlowPage() {
   function makeVariationLabel(series: Series) {
     return function renderVariationLabel(props: any) {
       const { x, y, width, value, payload } = props
+      console.log('LABEL_DEBUG2', series, JSON.stringify(props))
       // LabelList's own `index` only counts bars that actually have geometry (recharts
       // drops zero-value bars), so it does NOT match the month's position in `trend`.
       // Look up the real month via the bar's payload instead.
