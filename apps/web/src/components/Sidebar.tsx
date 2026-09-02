@@ -3,10 +3,11 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { LayoutDashboard, CalendarDays, Users, Truck, LogOut } from 'lucide-react'
+import { LayoutDashboard, FileBarChart, CalendarDays, Users, Truck, LogOut } from 'lucide-react'
 
 const NAV_ITEMS = [
   { href: '/cashflow', label: 'Cash Flow', icon: LayoutDashboard },
+  { href: '/reportes', label: 'Reportes', icon: FileBarChart },
   { href: '/eventos', label: 'Eventos', icon: CalendarDays },
   { href: '/clientes', label: 'Clientes', icon: Users },
   { href: '/proveedores', label: 'Proveedores', icon: Truck },
@@ -23,7 +24,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="w-56 min-h-screen bg-white border-r border-gray-200 flex flex-col">
+    <aside className="w-56 min-h-screen bg-white border-r border-gray-200 flex flex-col print:hidden">
       <div className="px-5 py-5 border-b border-gray-100">
         <img src="/aco-logo.webp" alt="ACO Workspace" className="h-7 w-auto" />
       </div>
