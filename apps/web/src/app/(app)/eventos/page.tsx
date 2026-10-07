@@ -8,6 +8,7 @@ import { EventSummary } from '@/types'
 import { formatARS, formatDate } from '@/lib/format'
 import { ClientSelect } from '@/components/ClientSelect'
 import { LocationPicker } from '@/components/LocationPicker'
+import { GoogleCalendarConnect } from '@/components/GoogleCalendarConnect'
 import { Plus, Loader2, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 
 const MONTH_NAMES = [
@@ -89,6 +90,10 @@ export default function EventosPage() {
           >
             <Plus className="w-4 h-4" /> Nuevo evento
           </button>
+        </div>
+
+        <div className="mb-6">
+          <GoogleCalendarConnect />
         </div>
 
         <div className="flex items-center justify-between mb-4">

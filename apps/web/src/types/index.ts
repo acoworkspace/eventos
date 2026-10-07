@@ -101,3 +101,63 @@ export interface ParsedInvoice {
   currency: 'ARS' | 'USD'
   exchange_rate: number | null
 }
+
+export type QuoteStatus = 'borrador' | 'confirmada'
+
+export interface QuoteLine {
+  id: string
+  quote_id: string
+  block_id: string | null
+  category_id: string | null
+  category_label: string
+  provider_id: string | null
+  provider: Provider | null
+  sort_order: number
+  cost: number
+  client_price: number
+}
+
+export interface QuoteBlock {
+  id: string
+  quote_id: string
+  sort_order: number
+  option_no: number | null
+  title: string | null
+  items: string | null
+  short_name: string | null
+  show_price: boolean
+}
+
+interface QuoteBase {
+  id: string
+  client_id: string | null
+  client: { id: string; name: string } | null
+  issue_date: string
+  event_date: string | null
+  location: string | null
+  pax: number | null
+  exchange_rate: number | null
+  iva_rate: number
+  contact_email: string | null
+  contact_phone: string | null
+  status: QuoteStatus
+  chosen_option: number | null
+  event_id: string | null
+  confirmed_at: string | null
+}
+
+export interface QuoteOptionTotal {
+  option: number | null
+  costo: number
+  precio: number
+  ganancia: number
+}
+
+export interface QuoteSummary extends QuoteBase {
+  options: QuoteOptionTotal[]
+}
+
+export interface QuoteDetail extends QuoteBase {
+  quote_lines: QuoteLine[]
+  quote_blocks: QuoteBlock[]
+}

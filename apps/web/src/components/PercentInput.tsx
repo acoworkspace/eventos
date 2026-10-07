@@ -2,31 +2,31 @@
 
 import { useRef, useState } from 'react'
 
-export function CurrencyInput({
-  value, onCommit, className,
+// Campo de porcentaje: muestra "21%" y al editar acepta "21", "21%" o "10,5".
+export function PercentInput({
+  value, onCommit, disabled, className,
 }: {
-  value: number
+  value: number | null
   onCommit: (value: number) => void
+  disabled?: boolean
   className?: string
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
-  // Al entrar con un clic, el mouseup ponía el cursor donde se hizo clic y deshacía la selección:
-  // lo tipeado se mezclaba con el número anterior. Se vuelve a seleccionar todo en ese mouseup.
+  // Mismo arreglo que CurrencyInput: el mouseup del clic no debe deshacer la selección
   const reselectOnMouseUp = useRef(false)
-
-  function formatDisplay(n: number) {
-    return `$ ${Math.round(n).toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
-  }
+  const display = value == null ? '—' : `${Number(value.toFixed(1))}%`
 
   return (
     <input
       type="text"
       inputMode="decimal"
-      value={editing ? draft : formatDisplay(value)}
+      disabled={disabled}
+      title={disabled ? 'Cargá primero el monto base' : undefined}
+      value={editing ? draft : display}
       onFocus={(e) => {
         setEditing(true)
-        setDraft(value === 0 ? '' : String(value))
+        setDraft(value == null ? '' : String(Number(value.toFixed(2))))
         reselectOnMouseUp.current = true
         requestAnimationFrame(() => e.target.select())
       }}
@@ -39,7 +39,8 @@ export function CurrencyInput({
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => {
         setEditing(false)
-        onCommit(Math.round(Number(draft.replace(',', '.')) || 0))
+        const n = Number(draft.replace('%', '').replace(',', '.').trim())
+        if (draft.trim() !== '' && Number.isFinite(n)) onCommit(n)
       }}
       onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
       className={className}

@@ -10,6 +10,7 @@ import { ProviderSelect } from '@/components/ProviderSelect'
 import { ClientSelect } from '@/components/ClientSelect'
 import { LocationPicker } from '@/components/LocationPicker'
 import { CurrencyInput } from '@/components/CurrencyInput'
+import { TaxInput } from '@/components/TaxInput'
 import { PaymentModal } from '@/components/PaymentModal'
 import { InvoiceModal } from '@/components/InvoiceModal'
 import { AddLineModal } from '@/components/AddLineModal'
@@ -331,7 +332,10 @@ function LinesTable({
           <tr className="border-t border-gray-200 font-medium text-gray-800">
             <td className="px-4 py-2" colSpan={2}>Subtotal</td>
             <td className="px-4 py-2 text-right whitespace-nowrap">{formatARS(neto)}</td>
-            <td className="px-4 py-2 text-right whitespace-nowrap">{formatARS(impuestos)}</td>
+            <td className="px-4 py-2 text-right whitespace-nowrap">
+              {formatARS(impuestos)}
+              {neto > 0 && impuestos > 0 && <div className="text-[10px] font-normal text-gray-400">{Number(((impuestos / neto) * 100).toFixed(2))}%</div>}
+            </td>
             <td className="px-4 py-2 text-right whitespace-nowrap">{formatARS(total)}</td>
             <td className="px-4 py-2 text-right whitespace-nowrap text-gray-500 text-xs">{exchangeRate ? formatUSD(total / exchangeRate) : '—'}</td>
             <td colSpan={5}></td>
@@ -366,6 +370,14 @@ function LineRow({
     : (exchangeRate ? line.total / exchangeRate : null)
 
   const isPrecioServicio = line.category_label === 'Precio Servicio'
+  const neto = Number(line.neto)
+  const impuestos = Number(line.impuestos)
+
+  // Cambiar el neto mantiene el % de impuestos de la fila, salvo que los montos vengan de una factura
+  function commitNeto(v: number) {
+    const keepRate = !line.has_invoice && neto > 0 && impuestos > 0
+    onUpdateLine(line.id, keepRate ? { neto: v, impuestos: Math.round(v * impuestos / neto) } : { neto: v })
+  }
   const invoiceButtonLabel = isPrecioServicio ? 'Cargar (Presupuesto)' : 'Cargar'
 
   return (
@@ -379,15 +391,16 @@ function LineRow({
       <td className="px-2 py-2">
         <CurrencyInput
           value={line.neto}
-          onCommit={(v) => onUpdateLine(line.id, { neto: v })}
+          onCommit={commitNeto}
           className="w-full min-w-[110px] px-2 py-1 text-right text-sm border border-transparent hover:border-gray-200 focus:border-blue-400 rounded focus:outline-none"
         />
       </td>
       <td className="px-2 py-2">
-        <CurrencyInput
-          value={line.impuestos}
+        <TaxInput
+          amount={impuestos}
+          base={neto}
           onCommit={(v) => onUpdateLine(line.id, { impuestos: v })}
-          className="w-full min-w-[110px] px-2 py-1 text-right text-sm border border-transparent hover:border-gray-200 focus:border-blue-400 rounded focus:outline-none"
+          inputClassName="w-full min-w-[110px] px-2 py-1 text-right text-sm border border-transparent hover:border-gray-200 focus:border-blue-400 rounded focus:outline-none disabled:text-gray-300"
         />
       </td>
       <td className="px-4 py-2 text-right whitespace-nowrap font-medium text-gray-800">{formatARS(line.total)}</td>
