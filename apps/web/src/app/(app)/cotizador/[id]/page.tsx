@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
@@ -10,6 +10,8 @@ import { ProviderSelect } from '@/components/ProviderSelect'
 import { ClientSelect } from '@/components/ClientSelect'
 import { LocationPicker } from '@/components/LocationPicker'
 import { CurrencyInput } from '@/components/CurrencyInput'
+import { PercentInput } from '@/components/PercentInput'
+import { TaxInput } from '@/components/TaxInput'
 import { AddLineModal } from '@/components/AddLineModal'
 import {
   ArrowLeft, Plus, Trash2, Printer, CheckCircle2, Loader2, ChevronUp, ChevronDown,
@@ -25,6 +27,11 @@ function longDate(iso: string) {
 // "$6.300.000", como en el presupuesto modelo (sin espacio después del signo)
 function money(n: number) {
   return `$${Math.round(n).toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
+}
+
+// "21%", "10.5%": la tasa se guarda con decimales cuando el IVA se carga como monto
+function pctLabel(rate: number) {
+  return `${Number(rate.toFixed(2))}%`
 }
 
 function marginPct(cost: number, price: number) {
@@ -322,6 +329,7 @@ export default function QuoteDetailPage() {
             costo={view.costo}
             precio={view.precio}
             ivaRate={ivaRate}
+            onChangeIvaRate={(iva_rate) => updateQuoteMutation.mutate({ iva_rate })}
           />
 
           <fieldset disabled={locked} className="space-y-8">
@@ -467,13 +475,13 @@ function ingresoRows(neto: number, ivaRate: number) {
   const senaNeto = Math.round(neto / 2)
   const senaIva = Math.round(iva / 2)
   return [
-    { label: 'Precio Servicio', neto, iva },
-    { label: 'Seña (50%)', neto: senaNeto, iva: senaIva },
-    { label: 'Saldo (50%)', neto: neto - senaNeto, iva: iva - senaIva },
+    { label: 'Precio Servicio', neto, iva, editable: true },
+    { label: 'Seña (50%)', neto: senaNeto, iva: senaIva, editable: false },
+    { label: 'Saldo (50%)', neto: neto - senaNeto, iva: iva - senaIva, editable: false },
   ]
 }
 
-function IngresosCard({ options, shownOption, onSelectOption, canSelect, costo, precio, ivaRate }: {
+function IngresosCard({ options, shownOption, onSelectOption, canSelect, costo, precio, ivaRate, onChangeIvaRate }: {
   options: number[]
   shownOption: number | null
   onSelectOption: (option: number) => void
@@ -481,8 +489,10 @@ function IngresosCard({ options, shownOption, onSelectOption, canSelect, costo, 
   costo: number
   precio: number
   ivaRate: number
+  onChangeIvaRate: (rate: number) => void
 }) {
   const ganancia = precio - costo
+  const iva = Math.round(precio * ivaRate / 100)
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
@@ -510,7 +520,7 @@ function IngresosCard({ options, shownOption, onSelectOption, canSelect, costo, 
           <tr>
             <th className="text-left px-4 py-2 font-medium">Concepto</th>
             <th className="text-right px-4 py-2 font-medium w-32">Neto</th>
-            <th className="text-right px-4 py-2 font-medium w-32">IVA {ivaRate}%</th>
+            <th className="text-right px-4 py-2 font-medium w-40">IVA</th>
             <th className="text-right px-4 py-2 font-medium w-32">Total</th>
           </tr>
         </thead>
@@ -519,7 +529,22 @@ function IngresosCard({ options, shownOption, onSelectOption, canSelect, costo, 
             <tr key={r.label}>
               <td className="px-4 py-2 text-gray-800">{r.label}</td>
               <td className="px-4 py-2 text-right whitespace-nowrap">{formatARS(r.neto)}</td>
-              <td className="px-4 py-2 text-right whitespace-nowrap">{formatARS(r.iva)}</td>
+              <td className="px-4 py-2 text-right whitespace-nowrap">
+                {r.editable && canSelect ? (
+                  // El IVA se carga en la fila del total; seña y saldo salen a la mitad
+                  <TaxInput
+                    amount={iva}
+                    base={precio}
+                    onCommit={(amount) => { if (precio > 0) onChangeIvaRate(Math.max(0, Number(((amount / precio) * 100).toFixed(6)))) }}
+                    inputClassName="w-full px-2 py-1 text-right text-sm border border-gray-200 bg-white rounded focus:outline-none focus:border-blue-400"
+                  />
+                ) : (
+                  <>
+                    {formatARS(r.iva)}
+                    {r.editable && <div className="text-[10px] text-gray-400">{pctLabel(ivaRate)}</div>}
+                  </>
+                )}
+              </td>
               <td className="px-4 py-2 text-right whitespace-nowrap font-medium">{formatARS(r.neto + r.iva)}</td>
             </tr>
           ))}
@@ -713,7 +738,7 @@ function ConfirmModal({ quote, options, loading, onClose, onConfirm }: {
 
         <div className="text-sm text-gray-700 space-y-1 bg-gray-50 rounded-lg px-3 py-2">
           <div>Evento del <b>{formatDate(quote.event_date)}</b> · {quote.client?.name}</div>
-          <div>Ingresos: <b>{formatARS(t.precio)}</b> + IVA {ivaRate}% (seña y saldo 50% cada uno)</div>
+          <div>Ingresos: <b>{formatARS(t.precio)}</b> + IVA {pctLabel(ivaRate)} (seña y saldo 50% cada uno)</div>
           <div>Costos: <b>{formatARS(t.costo)}</b> en {t.filas.filter(l => Number(l.cost) > 0).length} filas</div>
         </div>
         <p className="text-xs text-gray-500">Después de confirmar, la cotización queda cerrada.</p>
@@ -731,48 +756,6 @@ function ConfirmModal({ quote, options, loading, onClose, onConfirm }: {
         </div>
       </div>
     </div>
-  )
-}
-
-function PercentInput({ value, onCommit, disabled, className }: {
-  value: number | null
-  onCommit: (value: number) => void
-  disabled?: boolean
-  className?: string
-}) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState('')
-  const reselectOnMouseUp = useRef(false)   // mismo arreglo que CurrencyInput
-  const display = value == null ? '—' : `${Number(value.toFixed(1))}%`
-
-  return (
-    <input
-      type="text"
-      inputMode="decimal"
-      disabled={disabled}
-      title={disabled ? 'Cargá primero el costo' : undefined}
-      value={editing ? draft : display}
-      onFocus={(e) => {
-        setEditing(true)
-        setDraft(value == null ? '' : String(Number(value.toFixed(2))))
-        reselectOnMouseUp.current = true
-        requestAnimationFrame(() => e.target.select())
-      }}
-      onMouseUp={(e) => {
-        if (!reselectOnMouseUp.current) return
-        reselectOnMouseUp.current = false
-        e.preventDefault()
-        e.currentTarget.select()
-      }}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => {
-        setEditing(false)
-        const n = Number(draft.replace('%', '').replace(',', '.'))
-        if (draft.trim() !== '' && Number.isFinite(n)) onCommit(n)
-      }}
-      onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
-      className={className}
-    />
   )
 }
 
@@ -884,7 +867,7 @@ function SingleTotal({ neto, ivaRate }: { neto: number; ivaRate: number }) {
   return (
     <div className="pl-12">
       <p className="font-bold text-[14pt]">El presupuesto tiene un valor de {money(neto)} +IVA</p>
-      <p className="text-[10pt] text-gray-600 mt-1">Neto {money(neto)} · IVA {ivaRate}% {money(iva)} · Total {money(neto + iva)}</p>
+      <p className="text-[10pt] text-gray-600 mt-1">Neto {money(neto)} · IVA {pctLabel(ivaRate)} {money(iva)} · Total {money(neto + iva)}</p>
     </div>
   )
 }

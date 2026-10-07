@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { supabase } from '../lib/supabase'
+import { syncEvent } from '../lib/googleCalendar'
 
 const router = Router()
 
@@ -230,6 +231,7 @@ router.post('/:id/confirm', async (req, res) => {
       : res.status(409).json({ error: 'La cotización ya está confirmada' })
   }
 
+  await syncEvent(event.id)
   res.json(updated)
 })
 

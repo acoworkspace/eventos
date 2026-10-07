@@ -10,6 +10,7 @@ import lineCategoriesRouter from './routes/lineCategories'
 import quotesRouter from './routes/quotes'
 import quoteLinesRouter from './routes/quoteLines'
 import quoteBlocksRouter from './routes/quoteBlocks'
+import googleCalendarRouter, { callbackRouter as googleCallbackRouter } from './routes/googleCalendar'
 import { requireAuth } from './lib/requireAuth'
 
 const app = express()
@@ -30,6 +31,7 @@ app.use(cors({
 app.use(express.json())
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }))
+app.use(googleCallbackRouter)
 app.use('/api', requireAuth)
 app.use('/api/events', eventsRouter)
 app.use('/api/event-lines', eventLinesRouter)
@@ -40,6 +42,7 @@ app.use('/api/line-categories', lineCategoriesRouter)
 app.use('/api/quotes', quotesRouter)
 app.use('/api/quote-lines', quoteLinesRouter)
 app.use('/api/quote-blocks', quoteBlocksRouter)
+app.use('/api/google-calendar', googleCalendarRouter)
 
 app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`))
 

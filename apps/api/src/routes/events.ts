@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { supabase } from '../lib/supabase'
+import { calendarLinks, removeEvent, syncEvent } from '../lib/googleCalendar'
 
 const router = Router()
 
@@ -85,6 +86,7 @@ router.post('/', async (req, res) => {
     if (seedError) return res.status(500).json({ error: seedError.message })
   }
 
+  await syncEvent(event.id)
   res.status(201).json(event)
 })
 
@@ -98,12 +100,15 @@ router.put('/:id', async (req, res) => {
     .single()
 
   if (error) return res.status(500).json({ error: error.message })
+  await syncEvent(data.id)
   res.json(data)
 })
 
 router.delete('/:id', async (req, res) => {
+  const links = await calendarLinks(req.params.id)
   const { error } = await supabase.from('events').delete().eq('id', req.params.id)
   if (error) return res.status(500).json({ error: error.message })
+  await removeEvent(links)
   res.status(204).send()
 })
 

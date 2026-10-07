@@ -12,7 +12,7 @@ create table quotes (
   location        text,                                 -- "ESPACIO" en el PDF
   pax             int,
   exchange_rate   numeric(10,2),
-  iva_rate        numeric(5,2) not null default 21,
+  iva_rate        numeric(9,6) not null default 21,     -- se guarda como %; si se carga en monto, se convierte
 
   contact_email   text default 'lucas@acoworkspace.com',
   contact_phone   text default '11 21636186',
@@ -76,3 +76,9 @@ create trigger trg_quote_blocks_updated_at
 create trigger trg_quote_lines_updated_at
   before update on quote_lines
   for each row execute function set_updated_at();
+
+-- El front sólo usa Supabase para el login; los datos pasan por la API (service role),
+-- así que con RLS sin políticas estas tablas no quedan expuestas a la anon key.
+alter table quotes enable row level security;
+alter table quote_blocks enable row level security;
+alter table quote_lines enable row level security;
