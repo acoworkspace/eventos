@@ -7,6 +7,9 @@ import providersRouter from './routes/providers'
 import clientsRouter from './routes/clients'
 import invoicesRouter from './routes/invoices'
 import lineCategoriesRouter from './routes/lineCategories'
+import quotesRouter from './routes/quotes'
+import quoteLinesRouter from './routes/quoteLines'
+import quoteBlocksRouter from './routes/quoteBlocks'
 import { requireAuth } from './lib/requireAuth'
 
 const app = express()
@@ -34,6 +37,9 @@ app.use('/api/providers', providersRouter)
 app.use('/api/clients', clientsRouter)
 app.use('/api/invoices', invoicesRouter)
 app.use('/api/line-categories', lineCategoriesRouter)
+app.use('/api/quotes', quotesRouter)
+app.use('/api/quote-lines', quoteLinesRouter)
+app.use('/api/quote-blocks', quoteBlocksRouter)
 
 app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`))
 

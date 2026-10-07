@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 export function CurrencyInput({
   value, onCommit, className,
@@ -11,6 +11,9 @@ export function CurrencyInput({
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
+  // Al entrar con un clic, el mouseup ponía el cursor donde se hizo clic y deshacía la selección:
+  // lo tipeado se mezclaba con el número anterior. Se vuelve a seleccionar todo en ese mouseup.
+  const reselectOnMouseUp = useRef(false)
 
   function formatDisplay(n: number) {
     return `$ ${Math.round(n).toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
@@ -24,7 +27,14 @@ export function CurrencyInput({
       onFocus={(e) => {
         setEditing(true)
         setDraft(value === 0 ? '' : String(value))
+        reselectOnMouseUp.current = true
         requestAnimationFrame(() => e.target.select())
+      }}
+      onMouseUp={(e) => {
+        if (!reselectOnMouseUp.current) return
+        reselectOnMouseUp.current = false
+        e.preventDefault()
+        e.currentTarget.select()
       }}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => {
