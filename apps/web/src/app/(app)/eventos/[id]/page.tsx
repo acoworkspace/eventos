@@ -143,17 +143,18 @@ export default function EventDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
+      <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
         <div className="flex items-center justify-between mb-3">
-          <button onClick={() => router.push('/eventos')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800">
+          <button onClick={() => router.push('/eventos')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 py-1">
             <ArrowLeft className="w-4 h-4" /> Eventos
           </button>
-          <button onClick={handleDeleteEvent} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-600">
-            <Trash2 className="w-4 h-4" /> Eliminar evento
+          <button onClick={handleDeleteEvent} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-600 py-1">
+            <Trash2 className="w-4 h-4" /> <span className="hidden sm:inline">Eliminar evento</span><span className="sm:hidden">Eliminar</span>
           </button>
         </div>
-        <div className="flex items-start justify-between gap-6">
-          <div className="flex-1 min-w-0">
+        {/* Mobile: cliente, fecha + tipo de cambio, lugar. Desktop: cliente/fecha arriba, lugar/tipo de cambio abajo. */}
+        <div className="grid grid-cols-2 sm:grid-cols-[1fr_auto] gap-x-3 sm:gap-x-6 gap-y-3">
+          <div className="col-span-2 sm:col-span-1 order-1 min-w-0">
             <label className="block text-xs text-gray-500 mb-1">Cliente</label>
             <ClientSelect
               value={event.client_id}
@@ -161,39 +162,38 @@ export default function EventDetailPage() {
               className="w-full text-lg font-semibold text-gray-900 border-none bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1 -mx-1"
             />
           </div>
-          <div className="text-right shrink-0">
+          <div className="order-2 sm:text-right">
             <label className="block text-xs text-gray-500 mb-1">Fecha del evento</label>
             <input
               type="date"
               defaultValue={event.event_date}
               onBlur={(e) => e.target.value && updateEventMutation.mutate({ event_date: e.target.value })}
-              className="px-2 py-1 text-sm text-right border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full sm:w-auto px-2 py-1.5 sm:py-1 text-sm sm:text-right border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-        </div>
-        <div className="flex items-start justify-between mt-3">
-          <div>
+          <div className="col-span-2 sm:col-span-1 order-4 sm:order-3 min-w-0">
             <label className="block text-xs text-gray-500 mb-1">Lugar</label>
             <LocationPicker
               value={event.location}
               onChange={(location) => updateEventMutation.mutate({ location })}
             />
           </div>
-          <div className="text-right">
+          <div className="order-3 sm:order-4 sm:text-right">
             <label className="block text-xs text-gray-500 mb-1">Tipo de cambio</label>
             <input
               type="number"
+              inputMode="decimal"
               step="0.01"
               defaultValue={event.exchange_rate ?? ''}
               onBlur={(e) => updateEventMutation.mutate({ exchange_rate: e.target.value ? Number(e.target.value) : null })}
               placeholder="Sin definir"
-              className="w-28 px-2 py-1 text-sm text-right border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full sm:w-28 px-2 py-1.5 sm:py-1 text-sm text-right border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8 space-y-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-8 space-y-5 sm:space-y-8">
         <LinesTable
           title="Ingresos"
           kind="ingreso"
@@ -228,7 +228,7 @@ export default function EventDetailPage() {
           total={totalGastos}
         />
 
-        <div className="bg-white rounded-xl border border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div className="bg-white rounded-xl border border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between">
           <span className="text-sm font-medium text-gray-700">Resultado</span>
           <div className="text-right">
             <div className={`text-lg font-semibold ${resultado >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatARS(resultado)}</div>
@@ -291,11 +291,40 @@ function LinesTable({
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
         <h2 className="text-sm font-semibold text-gray-700">{title}</h2>
-        <button onClick={onAddLine} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
+        <button onClick={onAddLine} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium py-1">
           <Plus className="w-3.5 h-3.5" /> Agregar línea
         </button>
       </div>
-      <div className="overflow-x-auto">
+      {/* Mobile: una tarjeta por línea */}
+      <div className="md:hidden divide-y divide-gray-100">
+        {lines.map(line => (
+          <LineCard
+            key={line.id}
+            line={line}
+            kind={kind}
+            exchangeRate={exchangeRate}
+            onUpdateLine={onUpdateLine}
+            onOpenPayment={onOpenPayment}
+            onUndoPayment={onUndoPayment}
+            onOpenInvoice={onOpenInvoice}
+            onOpenAttachment={onOpenAttachment}
+            onDeleteLine={onDeleteLine}
+          />
+        ))}
+        <div className="px-4 py-3 bg-gray-50 text-sm">
+          <div className="flex justify-between text-gray-500"><span>Neto</span><span>{formatARS(neto)}</span></div>
+          <div className="flex justify-between text-gray-500"><span>Impuestos</span><span>{formatARS(impuestos)}</span></div>
+          <div className="flex justify-between font-semibold text-gray-800 mt-1">
+            <span>Subtotal</span>
+            <span className="text-right">
+              {formatARS(total)}
+              {exchangeRate ? <span className="block text-xs font-normal text-gray-500">{formatUSD(total / exchangeRate)}</span> : null}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="hidden md:block overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="text-gray-500 text-xs uppercase">
           <tr>
@@ -361,13 +390,7 @@ function LineRow({
   onDeleteLine: (lineId: string) => void
 }) {
   const [confirmingUndo, setConfirmingUndo] = useState(false)
-
-  // Si la línea viene de una factura en USD, el monto en dólares es el original de esa
-  // factura (ya convertido a pesos con su propio tipo de cambio) — no se recalcula con el
-  // tipo de cambio general del evento.
-  const usd = line.invoice_currency === 'USD' && line.invoice_exchange_rate
-    ? line.total / line.invoice_exchange_rate
-    : (exchangeRate ? line.total / exchangeRate : null)
+  const usd = lineUsd(line, exchangeRate)
 
   const isPrecioServicio = line.category_label === 'Precio Servicio'
   const neto = Number(line.neto)
@@ -470,5 +493,138 @@ function LineRow({
         </button>
       </td>
     </tr>
+  )
+}
+
+// Si la línea viene de una factura en USD, el monto en dólares es el original de esa
+// factura (ya convertido a pesos con su propio tipo de cambio) — no se recalcula con el
+// tipo de cambio general del evento.
+function lineUsd(line: EventLine, exchangeRate: number | null) {
+  return line.invoice_currency === 'USD' && line.invoice_exchange_rate
+    ? line.total / line.invoice_exchange_rate
+    : (exchangeRate ? line.total / exchangeRate : null)
+}
+
+function LineCard({
+  line, kind, exchangeRate, onUpdateLine, onOpenPayment, onUndoPayment, onOpenInvoice, onOpenAttachment, onDeleteLine,
+}: {
+  line: EventLine
+  kind: LineKind
+  exchangeRate: number | null
+  onUpdateLine: (lineId: string, data: Record<string, unknown>) => void
+  onOpenPayment: (line: EventLine) => void
+  onUndoPayment: (lineId: string) => void
+  onOpenInvoice: (line: EventLine) => void
+  onOpenAttachment: (path: string, bucket: 'facturas' | 'comprobantes') => void
+  onDeleteLine: (lineId: string) => void
+}) {
+  const [confirmingUndo, setConfirmingUndo] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const usd = lineUsd(line, exchangeRate)
+  const isPrecioServicio = line.category_label === 'Precio Servicio'
+  const paid = !isPrecioServicio && line.status === 'pagado'
+  const amountClass = 'w-full px-2.5 py-2 text-right text-sm border border-gray-200 rounded-lg focus:border-blue-400 focus:outline-none'
+
+  return (
+    <div className="px-4 py-3 space-y-2.5">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-medium text-gray-900">{line.category_label}</p>
+          <p className="text-sm text-gray-800">
+            {formatARS(line.total)}
+            {usd != null && <span className="text-xs text-gray-500"> · {formatUSD(usd)}</span>}
+          </p>
+        </div>
+        {confirmingDelete ? (
+          <span className="flex items-center gap-3 text-sm shrink-0 py-1">
+            <button onClick={() => onDeleteLine(line.id)} className="text-red-600 font-medium">Eliminar</button>
+            <button onClick={() => setConfirmingDelete(false)} className="text-gray-400">No</button>
+          </span>
+        ) : (
+          <button onClick={() => setConfirmingDelete(true)} className="p-2 -mr-2 -mt-1 text-gray-300 active:text-red-600" title="Eliminar línea">
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {kind === 'gasto' && (
+        <div>
+          <label className="block text-[11px] text-gray-500 mb-0.5">Proveedor</label>
+          <ProviderSelect
+            value={line.provider_id}
+            onChange={(providerId) => onUpdateLine(line.id, { provider_id: providerId })}
+            className="w-full px-2.5 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="block text-[11px] text-gray-500 mb-0.5">Neto</label>
+          <CurrencyInput value={line.neto} onCommit={(v) => onUpdateLine(line.id, { neto: v })} className={amountClass} />
+        </div>
+        <div>
+          <label className="block text-[11px] text-gray-500 mb-0.5">Impuestos</label>
+          <CurrencyInput value={line.impuestos} onCommit={(v) => onUpdateLine(line.id, { impuestos: v })} className={amountClass} />
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        {line.has_invoice ? (
+          <>
+            <button
+              onClick={() => line.invoice_pdf_url && onOpenAttachment(line.invoice_pdf_url, 'facturas')}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-green-50 text-green-700 border border-green-100"
+            >
+              <FileText className="w-3.5 h-3.5" /> Factura
+            </button>
+            <button onClick={() => onOpenInvoice(line)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-gray-200 text-gray-600">
+              <Pencil className="w-3 h-3" /> Editar
+            </button>
+          </>
+        ) : (
+          <button onClick={() => onOpenInvoice(line)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-blue-200 text-blue-600">
+            <Plus className="w-3 h-3" /> {isPrecioServicio ? 'Cargar presupuesto' : 'Cargar factura'}
+          </button>
+        )}
+
+        {!isPrecioServicio && (
+          <button
+            onClick={() => onOpenPayment(line)}
+            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border font-medium ${paid ? 'bg-green-50 text-green-700 border-green-100' : 'border-gray-200 text-gray-500'}`}
+          >
+            {paid ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />}
+            {paid ? (kind === 'ingreso' ? 'Cobrado' : 'Pagado') : 'Pendiente'}
+          </button>
+        )}
+      </div>
+
+      {paid && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+          <span>{formatDate(line.payment_date)} · {line.payment_method || '—'}</span>
+          {line.receipt_url && (
+            <button onClick={() => onOpenAttachment(line.receipt_url!, 'comprobantes')} className="inline-flex items-center gap-1 text-blue-600 py-1">
+              <ExternalLink className="w-3 h-3" /> Comprobante
+            </button>
+          )}
+          {line.retention_url && (
+            <button onClick={() => onOpenAttachment(line.retention_url!, 'comprobantes')} className="inline-flex items-center gap-1 text-blue-600 py-1">
+              <ExternalLink className="w-3 h-3" /> Retención
+            </button>
+          )}
+          {confirmingUndo ? (
+            <span className="inline-flex items-center gap-3">
+              <span>¿Deshacer?</span>
+              <button onClick={() => { onUndoPayment(line.id); setConfirmingUndo(false) }} className="text-red-600 font-medium py-1">Sí</button>
+              <button onClick={() => setConfirmingUndo(false)} className="text-gray-400 py-1">No</button>
+            </span>
+          ) : (
+            <button onClick={() => setConfirmingUndo(true)} className="inline-flex items-center gap-1 text-gray-400 py-1">
+              <Undo2 className="w-3 h-3" /> Deshacer
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   )
 }

@@ -9,6 +9,7 @@ import { formatARS, formatDate } from '@/lib/format'
 import { ClientSelect } from '@/components/ClientSelect'
 import { LocationPicker } from '@/components/LocationPicker'
 import { GoogleCalendarConnect } from '@/components/GoogleCalendarConnect'
+import { Modal, ModalActions } from '@/components/Modal'
 import { Plus, Loader2, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 
 const MONTH_NAMES = [
@@ -81,12 +82,12 @@ export default function EventosPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <main className="max-w-5xl mx-auto px-6 py-8">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-lg font-semibold text-gray-900">Eventos</h1>
+          <h1 className="hidden md:block text-lg font-semibold text-gray-900">Eventos</h1>
           <button
             onClick={() => setShowNewModal(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+            className="w-full md:w-auto justify-center inline-flex items-center gap-1.5 px-4 py-2.5 md:py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
           >
             <Plus className="w-4 h-4" /> Nuevo evento
           </button>
@@ -98,11 +99,11 @@ export default function EventosPage() {
 
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <button onClick={() => setMonth(m => shiftMonth(m, -1))} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
+            <button onClick={() => setMonth(m => shiftMonth(m, -1))} className="p-2 md:p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <h2 className="text-sm font-semibold text-gray-800 w-40 text-center capitalize">{monthLabel}</h2>
-            <button onClick={() => setMonth(m => shiftMonth(m, 1))} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
+            <h2 className="text-sm font-semibold text-gray-800 w-36 md:w-40 text-center capitalize">{monthLabel}</h2>
+            <button onClick={() => setMonth(m => shiftMonth(m, 1))} className="p-2 md:p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -111,7 +112,7 @@ export default function EventosPage() {
           )}
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 px-4 py-3 mb-6 max-w-sm">
+        <div className="bg-white rounded-xl border border-gray-200 px-4 py-3 mb-4 md:mb-6 md:max-w-sm">
           <div className="space-y-1 text-sm">
             <div className="flex justify-between"><span className="text-gray-500">Ingresos</span><span className="font-medium text-gray-800">{formatARS(monthTotals.ingresos)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Costos</span><span className="font-medium text-gray-800">{formatARS(monthTotals.gastos)}</span></div>
@@ -119,7 +120,31 @@ export default function EventosPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        {/* Mobile: tarjetas */}
+        <div className="md:hidden space-y-2">
+          {isLoading && <p className="py-8 text-center text-sm text-gray-400">Cargando...</p>}
+          {!isLoading && monthEvents.length === 0 && (
+            <p className="py-8 text-center text-sm text-gray-400">No hay eventos en {monthLabel}.</p>
+          )}
+          {monthEvents.map(ev => (
+            <div
+              key={ev.id}
+              onClick={() => router.push(`/eventos/${ev.id}`)}
+              className="bg-white rounded-xl border border-gray-200 px-4 py-3 flex items-start gap-3 active:bg-gray-50"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-gray-900 truncate">{ev.client?.name ?? '—'}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{formatDate(ev.event_date)} · {ev.location || 'Sin lugar'}</p>
+                <p className={`text-sm font-semibold mt-1.5 ${ev.resultado >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatARS(ev.resultado)}</p>
+              </div>
+              <button onClick={(e) => handleDelete(e, ev.id)} className="p-2 -mr-2 -mt-1 text-gray-300 active:text-red-600" title="Eliminar evento">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
               <tr>
@@ -185,8 +210,7 @@ function NewEventModal({
   const [exchangeRate, setExchangeRate] = useState('')
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+    <Modal>
         <h3 className="text-base font-semibold text-gray-900 mb-4">Nuevo evento</h3>
         <form
           onSubmit={(e) => {
@@ -215,16 +239,15 @@ function NewEventModal({
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <ModalActions>
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
             <button type="submit" disabled={loading || !clientId}
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               Crear evento
             </button>
-          </div>
+          </ModalActions>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }

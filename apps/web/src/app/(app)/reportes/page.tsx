@@ -16,6 +16,11 @@ type Base = 'total' | 'neto'
 type SortKey = 'fecha' | 'cliente' | 'lugar' | 'ingresos' | 'costos' | 'resultado' | 'margen'
 type SortDir = 'asc' | 'desc'
 
+const SORT_OPTIONS: [SortKey, string][] = [
+  ['fecha', 'Fecha'], ['cliente', 'Cliente'], ['lugar', 'Lugar'], ['ingresos', 'Ingresos'],
+  ['costos', 'Costos'], ['resultado', 'Resultado'], ['margen', 'Margen'],
+]
+
 interface DetailLine {
   kind: 'ingreso' | 'gasto'
   label: string
@@ -248,17 +253,17 @@ export default function ReportesPage() {
         }
       `}</style>
 
-      <main className="max-w-6xl mx-auto px-6 py-8 space-y-5 print-shell">
-        <div className="flex items-center justify-between print:hidden">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-8 space-y-4 sm:space-y-5 print-shell">
+        <div className="flex items-center justify-between gap-3 print:hidden">
           <div>
             <h1 className="text-lg font-semibold text-gray-900">Reportes</h1>
             <p className="text-xs text-gray-500 mt-0.5">Rentabilidad por evento y consolidada</p>
           </div>
           <button
             onClick={() => window.print()}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
           >
-            <Printer className="w-4 h-4" /> Exportar PDF
+            <Printer className="w-4 h-4" /> <span className="hidden sm:inline">Exportar PDF</span><span className="sm:hidden">PDF</span>
           </button>
         </div>
 
@@ -280,7 +285,7 @@ export default function ReportesPage() {
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3 print:hidden">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Desde</label>
               <input type="date" value={from} onChange={e => setFrom(e.target.value)}
@@ -291,11 +296,11 @@ export default function ReportesPage() {
               <input type="date" value={to} onChange={e => setTo(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
-            <div>
+            <div className="col-span-2 md:col-span-1">
               <label className="block text-xs font-medium text-gray-600 mb-1">Clientes</label>
               <MultiSelectFilter options={clientOptions} selected={clientIds} onChange={setClientIds} label="Clientes" />
             </div>
-            <div>
+            <div className="col-span-2 md:col-span-1">
               <label className="block text-xs font-medium text-gray-600 mb-1">Lugares</label>
               <MultiSelectFilter options={locationOptions} selected={locations} onChange={setLocations} label="Lugares" />
             </div>
@@ -310,7 +315,8 @@ export default function ReportesPage() {
               </button>
             ))}
 
-            <span className="text-xs text-gray-400 ml-3 mr-1">Base</span>
+            <span className="basis-full sm:hidden" />
+            <span className="text-xs text-gray-400 sm:ml-3 mr-1">Base</span>
             {([['total', 'Total'], ['neto', 'Neto']] as const).map(([key, label]) => (
               <button key={key} onClick={() => setBase(key)}
                 className={`px-2.5 py-1 text-xs rounded-full border ${base === key ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
@@ -331,15 +337,84 @@ export default function ReportesPage() {
 
         {!isLoading && (
           <>
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 avoid-break">
-              <Kpi label="Eventos" value={String(totals.cantidad)} hint={totals.cantidad ? `${formatARS(totals.promedio)} de resultado promedio` : undefined} />
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 avoid-break">
+              <Kpi className="col-span-2 lg:col-span-1" label="Eventos" value={String(totals.cantidad)} hint={totals.cantidad ? `${formatARS(totals.promedio)} de resultado promedio` : undefined} />
               <Kpi label="Ingresos" value={formatARS(totals.ingresos)} valueClass="text-green-700" />
               <Kpi label="Costos" value={formatARS(totals.costos)} valueClass="text-red-700" />
               <Kpi label="Resultado" value={formatARS(totals.resultado)} valueClass={signColor(totals.resultado)} />
               <Kpi label="Margen" value={formatMargen(totals.margen)} valueClass={totals.margen !== null ? signColor(totals.margen) : 'text-gray-400'} />
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto print:border-0 print:rounded-none">
+            {/* Mobile: tarjetas con orden por selector. El PDF siempre usa la tabla. */}
+            <div className="md:hidden print:hidden space-y-2">
+              <div className="flex items-center justify-end gap-2 text-xs text-gray-500">
+                <span>Ordenar por</span>
+                <select
+                  value={sortKey}
+                  onChange={e => toggleSort(e.target.value as SortKey)}
+                  className="px-2 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-700"
+                >
+                  {SORT_OPTIONS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                </select>
+                <button
+                  onClick={() => setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))}
+                  className="px-2.5 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-700"
+                  aria-label="Invertir orden"
+                >
+                  {sortDir === 'asc' ? '▲' : '▼'}
+                </button>
+              </div>
+              {sortedRows.length === 0 && (
+                <p className="py-8 text-center text-sm text-gray-400">No hay eventos que cumplan con los filtros.</p>
+              )}
+              {sortedRows.map(r => {
+                const isOpen = expanded.has(r.id)
+                return (
+                  <div key={r.id} className="bg-white rounded-xl border border-gray-200">
+                    <button
+                      onClick={() => r.detalle.length > 0 && toggleExpanded(r.id)}
+                      className="w-full text-left px-4 py-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 truncate">{r.clientName}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{formatDate(r.eventDate)} · {r.location}</p>
+                        </div>
+                        {r.detalle.length > 0 && (
+                          <ChevronDown className={`w-4 h-4 shrink-0 mt-0.5 text-gray-400 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 mt-2 text-xs">
+                        <span className="text-gray-500">Ingresos</span><span className="text-right text-gray-800">{formatARS(r.ingresos)}</span>
+                        <span className="text-gray-500">Costos</span><span className="text-right text-gray-800">{formatARS(r.costos)}</span>
+                        <span className="text-gray-500">Resultado</span>
+                        <span className={`text-right font-semibold ${signColor(r.resultado)}`}>
+                          {formatARS(r.resultado)}
+                          <span className={`ml-1.5 font-normal ${r.margen !== null ? signColor(r.margen) : 'text-gray-400'}`}>({formatMargen(r.margen)})</span>
+                        </span>
+                      </div>
+                    </button>
+                    {isOpen && (
+                      <ul className="border-t border-gray-100 bg-gray-50/60 px-4 py-2 space-y-1 text-xs rounded-b-xl">
+                        {r.detalle.map(d => (
+                          <li key={`${d.kind}-${d.label}`} className="flex items-center justify-between gap-2">
+                            <span className="flex items-center gap-2 min-w-0 text-gray-500">
+                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${d.kind === 'ingreso' ? 'bg-green-500' : 'bg-red-400'}`} />
+                              <span className="truncate">{d.label}</span>
+                            </span>
+                            <span className={d.kind === 'ingreso' ? 'text-gray-700' : 'text-gray-500'}>
+                              {d.kind === 'gasto' ? '−' : ''}{formatARS(d.monto)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="hidden md:block print:block bg-white rounded-xl border border-gray-200 overflow-x-auto print:border-0 print:rounded-none">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
                   <tr>
@@ -418,16 +493,17 @@ export default function ReportesPage() {
   )
 }
 
-function Kpi({ label, value, hint, valueClass }: {
+function Kpi({ label, value, hint, valueClass, className }: {
+  className?: string
   label: string
   value: string
   hint?: string
   valueClass?: string
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 px-4 py-3">
+    <div className={`bg-white rounded-xl border border-gray-200 px-3 sm:px-4 py-3 ${className ?? ''}`}>
       <p className="text-xs text-gray-500">{label}</p>
-      <p className={`text-lg font-semibold mt-0.5 ${valueClass ?? 'text-gray-900'}`}>{value}</p>
+      <p className={`text-base sm:text-lg font-semibold mt-0.5 ${valueClass ?? 'text-gray-900'}`}>{value}</p>
       {hint && <p className="text-[10px] text-gray-400 mt-0.5">{hint}</p>}
     </div>
   )

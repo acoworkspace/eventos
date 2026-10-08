@@ -26,14 +26,14 @@ export function SearchableSelect({
   const selected = items.find(i => i.id === value)
 
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
+    function handleClick(e: PointerEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false)
         setQuery('')
       }
     }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+    document.addEventListener('pointerdown', handleClick)
+    return () => document.removeEventListener('pointerdown', handleClick)
   }, [])
 
   const filtered = query.trim()
@@ -73,7 +73,7 @@ export function SearchableSelect({
               key={item.id}
               type="button"
               onMouseDown={(e) => { e.preventDefault(); onChange(item.id); setOpen(false); setQuery('') }}
-              className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 ${item.id === value ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
+              className={`w-full text-left px-3 py-2.5 md:py-1.5 text-sm hover:bg-gray-50 ${item.id === value ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
             >
               {item.label}
             </button>

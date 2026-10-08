@@ -27,14 +27,14 @@ export function MultiSelectFilter({
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
+    function handleClick(e: PointerEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false)
         setQuery('')
       }
     }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+    document.addEventListener('pointerdown', handleClick)
+    return () => document.removeEventListener('pointerdown', handleClick)
   }, [])
 
   const filtered = query.trim()
@@ -87,7 +87,7 @@ export function MultiSelectFilter({
                   key={o.id}
                   type="button"
                   onClick={() => toggle(o.id)}
-                  className={`w-full flex items-center gap-2 text-left px-3 py-1.5 text-sm hover:bg-gray-50 ${on ? 'text-blue-700' : 'text-gray-700'}`}
+                  className={`w-full flex items-center gap-2 text-left px-3 py-2.5 md:py-1.5 text-sm hover:bg-gray-50 ${on ? 'text-blue-700' : 'text-gray-700'}`}
                 >
                   <span className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center ${on ? 'bg-blue-600 border-blue-600' : 'border-gray-300'}`}>
                     {on && <Check className="w-3 h-3 text-white" />}

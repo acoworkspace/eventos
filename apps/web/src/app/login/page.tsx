@@ -36,7 +36,7 @@ export default function LoginPage() {
           <img src="/aco-logo.webp" alt="ACO Workspace" className="h-9 w-auto" />
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-8 py-8">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-6 sm:px-8 py-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-1">Iniciar sesión</h2>
           <p className="text-sm text-gray-500 mb-6">Acceso restringido al equipo de ACO.</p>
 

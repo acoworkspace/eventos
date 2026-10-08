@@ -220,15 +220,15 @@ export default function CashFlowPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-8 space-y-4 sm:space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-gray-900">Cash Flow</h1>
+          <h1 className="text-base sm:text-lg font-semibold text-gray-900">Cash Flow</h1>
           <div className="flex items-center gap-2">
-            <button onClick={() => setYear(y => y - 1)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
+            <button onClick={() => setYear(y => y - 1)} className="p-2 sm:p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
               <ChevronLeft className="w-4 h-4" />
             </button>
             <span className="text-sm font-medium text-gray-800 w-14 text-center">{year}</span>
-            <button onClick={() => setYear(y => y + 1)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
+            <button onClick={() => setYear(y => y + 1)} className="p-2 sm:p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -240,9 +240,9 @@ export default function CashFlowPage() {
           <>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-4">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <h2 className="text-sm font-semibold text-gray-700">Tendencia mensual</h2>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <button
                       onClick={() => setSelectedSeries(new Set(SERIES))}
                       className={`px-2.5 py-1 text-xs rounded-full border ${selectedSeries.size === SERIES.length ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
@@ -260,12 +260,12 @@ export default function CashFlowPage() {
                     ))}
                   </div>
                 </div>
-                <div className="h-64">
+                <div className="h-56 sm:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={trend} margin={{ top: 24, right: 0, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                      <XAxis dataKey="month" tick={{ fontSize: 11 }} interval={0} />
+                      <YAxis tick={{ fontSize: 11 }} width={44} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                       <Tooltip formatter={(v: any) => formatARS(Number(v))} />
                       <Legend />
                       {SERIES.filter(s => selectedSeries.has(s)).map(s => (
@@ -341,7 +341,8 @@ export default function CashFlowPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+            <p className="md:hidden text-[11px] text-gray-400 -mb-2">Deslizá la tabla hacia los costados para ver todos los meses.</p>
+            <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto overscroll-x-contain">
               <table className="w-full text-xs">
                 <thead className="bg-gray-50 text-gray-500 uppercase sticky top-0">
                   <tr>
@@ -376,7 +377,7 @@ export default function CashFlowPage() {
                           </tr>
                         )}
                         <tr className={`hover:bg-gray-50 ${row.kind === 'ingreso' ? 'bg-green-50/30' : 'bg-red-50/20'}`}>
-                          <td className={`px-3 py-2 sticky left-0 font-medium whitespace-nowrap ${row.kind === 'ingreso' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-gray-800'}`}>
+                          <td className={`px-3 py-2 sticky left-0 font-medium whitespace-nowrap max-w-[45vw] md:max-w-none overflow-hidden text-ellipsis ${row.kind === 'ingreso' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-gray-800'}`}>
                             {canExpand ? (
                               <button onClick={() => toggleExpanded(row.label)} className="flex items-center gap-1 hover:underline">
                                 <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
@@ -390,7 +391,7 @@ export default function CashFlowPage() {
                         </tr>
                         {canExpand && isOpen && eventRows.map(({ key, label, totals }) => (
                           <tr key={key} className="bg-gray-50/60">
-                            <td className="px-3 py-1.5 pl-9 sticky left-0 bg-gray-100 text-gray-500 whitespace-nowrap">{label}</td>
+                            <td className="px-3 py-1.5 pl-9 sticky left-0 bg-gray-100 text-gray-500 whitespace-nowrap max-w-[45vw] md:max-w-none overflow-hidden text-ellipsis" title={label}>{label}</td>
                             {months.map(m => (
                               <CellTds key={m.key} cell={totals[m.key]} className="text-gray-400" borderClassName="border-l border-gray-200" py="py-1.5" />
                             ))}

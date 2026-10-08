@@ -5,6 +5,7 @@ import api from '@/lib/api'
 import { EventLine, ParsedInvoice } from '@/types'
 import { CurrencyInput } from './CurrencyInput'
 import { Loader2, UploadCloud } from 'lucide-react'
+import { Modal, ModalActions } from './Modal'
 
 interface InvoiceDraft {
   invoice_number: string
@@ -164,8 +165,7 @@ export function InvoiceModal({
   const total = draft ? draft.neto + draft.impuestos : 0
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+    <Modal>
         <h3 className="text-base font-semibold text-gray-900 mb-1">Factura / presupuesto</h3>
         <p className="text-sm text-gray-500 mb-4">{line.category_label}</p>
 
@@ -230,7 +230,7 @@ export function InvoiceModal({
               </FieldRow>
             )}
 
-            <label className="flex items-center gap-2 text-xs text-gray-600 pt-1">
+            <label className="flex items-center gap-2 text-xs text-gray-600 pt-1 py-1">
               <input type="checkbox" checked={draft.conFactura} onChange={(e) => toggleConFactura(e.target.checked)} />
               Con factura (el total incluye IVA)
             </label>
@@ -275,7 +275,8 @@ export function InvoiceModal({
           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelected(f) }}
         />
 
-        <div className="flex justify-end gap-2 pt-4">
+        <div className="pt-2" />
+        <ModalActions>
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
           <button
             type="button"
@@ -286,9 +287,8 @@ export function InvoiceModal({
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
             Confirmar y aplicar
           </button>
-        </div>
-      </div>
-    </div>
+        </ModalActions>
+    </Modal>
   )
 }
 
@@ -307,7 +307,7 @@ function TextInput({ value, onChange }: { value: string; onChange: (v: string) =
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-40 px-2 py-1 text-xs text-right border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+      className="w-40 max-w-[60%] px-2 py-1 text-xs text-right border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
     />
   )
 }

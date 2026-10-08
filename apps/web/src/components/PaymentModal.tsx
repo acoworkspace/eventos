@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { EventLine } from '@/types'
 import { AttachmentUploader, Attachment } from './AttachmentUploader'
 import { Loader2 } from 'lucide-react'
+import { Modal, ModalActions } from './Modal'
 
 const PAYMENT_METHODS = ['Efectivo', 'Transferencia', 'Cheque', 'Otro']
 
@@ -22,8 +23,7 @@ export function PaymentModal({
   const [retention, setRetention] = useState<Attachment | null>(line.retention_url ? { path: line.retention_url, filename: 'Retención' } : null)
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+    <Modal>
         <h3 className="text-base font-semibold text-gray-900 mb-1">{isIngreso ? 'Marcar como cobrado' : 'Marcar como pagado'}</h3>
         <p className="text-sm text-gray-500 mb-4">{line.category_label}</p>
 
@@ -55,16 +55,15 @@ export function PaymentModal({
           <AttachmentUploader label={isIngreso ? 'Comprobante de cobro' : 'Comprobante de pago'} bucket="comprobantes" value={receipt} onChange={setReceipt} />
           <AttachmentUploader label="Retención (opcional)" bucket="comprobantes" value={retention} onChange={setRetention} />
 
-          <div className="flex justify-end gap-2 pt-2">
+          <ModalActions>
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
             <button type="submit" disabled={loading}
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {isIngreso ? 'Confirmar cobro' : 'Confirmar pago'}
             </button>
-          </div>
+          </ModalActions>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }
