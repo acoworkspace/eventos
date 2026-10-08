@@ -13,6 +13,7 @@ import { CurrencyInput } from '@/components/CurrencyInput'
 import { PercentInput } from '@/components/PercentInput'
 import { TaxInput } from '@/components/TaxInput'
 import { AddLineModal } from '@/components/AddLineModal'
+import { Modal, ModalActions } from '@/components/Modal'
 import {
   ArrowLeft, Plus, Trash2, Printer, CheckCircle2, Loader2, ChevronUp, ChevronDown,
 } from 'lucide-react'
@@ -218,33 +219,34 @@ export default function QuoteDetailPage() {
       `}</style>
 
       <div className="print:hidden">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between mb-3">
+        <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
+          <div className="flex items-center justify-between gap-3 mb-3">
             <button onClick={() => router.push('/cotizador')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800">
               <ArrowLeft className="w-4 h-4" /> Cotizador
             </button>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <button
                 onClick={() => confirm('¿Eliminar esta cotización?') && deleteQuoteMutation.mutate()}
-                className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-600"
+                className="flex items-center gap-1.5 p-2 sm:p-0 text-sm text-gray-400 hover:text-red-600"
+                title="Eliminar cotización"
               >
-                <Trash2 className="w-4 h-4" /> Eliminar
+                <Trash2 className="w-4 h-4" /> <span className="hidden sm:inline">Eliminar</span>
               </button>
-              <button onClick={handlePrint} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">
-                <Printer className="w-4 h-4" /> Exportar PDF
+              <button onClick={handlePrint} className="inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">
+                <Printer className="w-4 h-4" /> <span className="sm:hidden">PDF</span><span className="hidden sm:inline">Exportar PDF</span>
               </button>
               {locked ? (
                 <button
                   onClick={() => quote.event_id && router.push(`/eventos/${quote.event_id}`)}
                   disabled={!quote.event_id}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-60"
+                  className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-60"
                 >
                   <CheckCircle2 className="w-4 h-4" /> {quote.event_id ? 'Confirmada · Ver evento' : 'Confirmada (evento eliminado)'}
                 </button>
               ) : (
                 <button
                   onClick={openConfirm}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+                  className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
                 >
                   <CheckCircle2 className="w-4 h-4" /> Confirmar y crear evento
                 </button>
@@ -252,8 +254,28 @@ export default function QuoteDetailPage() {
             </div>
           </div>
 
+          {/* Mobile: la acción principal va a lo ancho, debajo de la barra */}
+          <div className="md:hidden mb-4">
+            {locked ? (
+              <button
+                onClick={() => quote.event_id && router.push(`/eventos/${quote.event_id}`)}
+                disabled={!quote.event_id}
+                className="w-full inline-flex justify-center items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg disabled:opacity-60"
+              >
+                <CheckCircle2 className="w-4 h-4" /> {quote.event_id ? 'Confirmada · Ver evento' : 'Confirmada (evento eliminado)'}
+              </button>
+            ) : (
+              <button
+                onClick={openConfirm}
+                className="w-full inline-flex justify-center items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg active:bg-blue-700"
+              >
+                <CheckCircle2 className="w-4 h-4" /> Confirmar y crear evento
+              </button>
+            )}
+          </div>
+
           <fieldset disabled={locked} className="space-y-3">
-            <div className="flex items-start justify-between gap-6">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-6">
               <div className="flex-1 min-w-0">
                 <label className="block text-xs text-gray-500 mb-1">Cliente</label>
                 <ClientSelect
@@ -262,19 +284,19 @@ export default function QuoteDetailPage() {
                   className="w-full text-lg font-semibold text-gray-900 border-none bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1 -mx-1"
                 />
               </div>
-              <div className="text-right shrink-0">
+              <div className="sm:text-right shrink-0">
                 <label className="block text-xs text-gray-500 mb-1">Fecha del evento</label>
                 <input
                   type="date"
                   defaultValue={quote.event_date ?? ''}
                   onBlur={(e) => updateQuoteMutation.mutate({ event_date: e.target.value || null })}
-                  className={`${inputBase} text-right`}
+                  className={`${inputBase} w-full sm:w-auto sm:text-right`}
                 />
               </div>
             </div>
-            <div className="flex items-start justify-between gap-6 flex-wrap">
-              <div className="flex items-start gap-6">
-                <div>
+            <div className="grid grid-cols-2 gap-3 sm:flex sm:items-start sm:justify-between sm:gap-6 sm:flex-wrap">
+              <div className="contents sm:flex sm:items-start sm:gap-6">
+                <div className="col-span-2 sm:col-span-1">
                   <label className="block text-xs text-gray-500 mb-1">Espacio</label>
                   <LocationPicker value={quote.location} onChange={(location) => updateQuoteMutation.mutate({ location })} />
                 </div>
@@ -284,28 +306,28 @@ export default function QuoteDetailPage() {
                     type="number" min="0"
                     defaultValue={quote.pax ?? ''}
                     onBlur={(e) => updateQuoteMutation.mutate({ pax: e.target.value ? Number(e.target.value) : null })}
-                    className={`${inputBase} w-24`}
+                    className={`${inputBase} w-full sm:w-24`}
                   />
                 </div>
               </div>
-              <div className="flex items-start gap-6 text-right">
-                <div>
+              <div className="contents sm:flex sm:items-start sm:gap-6 sm:text-right">
+                <div className="min-w-0">
                   <label className="block text-xs text-gray-500 mb-1">Fecha del presupuesto</label>
                   <input
                     type="date"
                     defaultValue={quote.issue_date}
                     onBlur={(e) => e.target.value && updateQuoteMutation.mutate({ issue_date: e.target.value })}
-                    className={`${inputBase} text-right`}
+                    className={`${inputBase} w-full sm:w-auto sm:text-right`}
                   />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <label className="block text-xs text-gray-500 mb-1">Tipo de cambio</label>
                   <input
                     type="number" step="0.01"
                     defaultValue={quote.exchange_rate ?? ''}
                     onBlur={(e) => updateQuoteMutation.mutate({ exchange_rate: e.target.value ? Number(e.target.value) : null })}
                     placeholder="Sin definir"
-                    className={`${inputBase} w-28 text-right`}
+                    className={`${inputBase} w-full sm:w-28 sm:text-right`}
                   />
                 </div>
               </div>
@@ -313,7 +335,7 @@ export default function QuoteDetailPage() {
           </fieldset>
         </header>
 
-        <main className="max-w-6xl mx-auto px-6 py-8 space-y-8">
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-8 space-y-6 sm:space-y-8">
           {locked && (
             <div className="bg-green-50 border border-green-200 text-green-800 text-sm rounded-xl px-4 py-3">
               Esta cotización se confirmó el {formatDate(quote.confirmed_at?.slice(0, 10))}
@@ -332,20 +354,47 @@ export default function QuoteDetailPage() {
             onChangeIvaRate={(iva_rate) => updateQuoteMutation.mutate({ iva_rate })}
           />
 
-          <fieldset disabled={locked} className="space-y-8">
+          <fieldset disabled={locked} className="space-y-6 sm:space-y-8 min-w-0">
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+              <div className="flex items-start sm:items-center justify-between gap-3 px-4 py-3 bg-gray-50 border-b border-gray-200">
                 <div>
                   <h2 className="text-sm font-semibold text-gray-700">Costos</h2>
                   <p className="text-[11px] text-gray-400">Cada fila suma al bloque que elijas. Sin bloque no se muestra al cliente, pero su precio suma en todas las opciones.</p>
                 </div>
                 {!locked && (
-                  <button onClick={() => setAddingLine(true)} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
+                  <button onClick={() => setAddingLine(true)} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium shrink-0 py-1">
                     <Plus className="w-3.5 h-3.5" /> Agregar línea
                   </button>
                 )}
               </div>
-              <div className="overflow-x-auto">
+
+              {/* Mobile: una tarjeta por fila de costo */}
+              <div className="md:hidden divide-y divide-gray-100">
+                {lines.length === 0 && <p className="px-4 py-6 text-center text-sm text-gray-400">Todavía no hay filas de costo.</p>}
+                {lines.map(line => (
+                  <QuoteLineCard
+                    key={line.id}
+                    line={line}
+                    blocks={blocks}
+                    locked={locked}
+                    onUpdate={(data) => updateLineMutation.mutate({ lineId: line.id, data })}
+                    onCommitCost={(cost) => commitCost(line, cost)}
+                    onDelete={() => deleteLineMutation.mutate(line.id)}
+                  />
+                ))}
+                {options.length === 0 && lines.length > 0 && (
+                  <div className="px-4 py-3 bg-gray-50 text-sm space-y-1">
+                    <div className="flex justify-between"><span className="text-gray-500">Costo</span><span className="font-medium text-gray-800">{formatARS(view.costo)}</span></div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Ganancia{view.costo > 0 && <span className="text-xs text-gray-400 ml-1">({((view.ganancia / view.costo) * 100).toFixed(1)}%)</span>}</span>
+                      <span className={`font-medium ${view.ganancia >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatARS(view.ganancia)}</span>
+                    </div>
+                    <div className="flex justify-between border-t border-gray-200 pt-1"><span className="text-gray-500">Precio cliente</span><span className="font-semibold text-gray-800">{formatARS(view.precio)}</span></div>
+                  </div>
+                )}
+              </div>
+
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="text-gray-500 text-xs uppercase">
                     <tr>
@@ -391,7 +440,7 @@ export default function QuoteDetailPage() {
             </div>
 
             <div className="space-y-3">
-              <div className="flex items-end justify-between">
+              <div className="flex items-start sm:items-end justify-between gap-3">
                 <div>
                   <h2 className="text-sm font-semibold text-gray-700">Presupuesto para el cliente</h2>
                   <p className="text-[11px] text-gray-400">
@@ -399,7 +448,7 @@ export default function QuoteDetailPage() {
                   </p>
                 </div>
                 {!locked && (
-                  <button onClick={() => addBlockMutation.mutate()} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium shrink-0">
+                  <button onClick={() => addBlockMutation.mutate()} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium shrink-0 py-1">
                     <Plus className="w-3.5 h-3.5" /> Agregar bloque
                   </button>
                 )}
@@ -427,18 +476,20 @@ export default function QuoteDetailPage() {
 
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <h2 className="text-sm font-semibold text-gray-700 mb-2">Contacto al pie del presupuesto</h2>
-              <div className="flex gap-4 flex-wrap">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 sm:flex-wrap">
                 <input
                   defaultValue={quote.contact_email ?? ''}
                   onBlur={(e) => updateQuoteMutation.mutate({ contact_email: e.target.value || null })}
+                  type="email"
                   placeholder="Email"
-                  className={`${inputBase} w-64`}
+                  className={`${inputBase} w-full sm:w-64 py-2 sm:py-1`}
                 />
                 <input
                   defaultValue={quote.contact_phone ?? ''}
                   onBlur={(e) => updateQuoteMutation.mutate({ contact_phone: e.target.value || null })}
+                  type="tel"
                   placeholder="Teléfono"
-                  className={`${inputBase} w-44`}
+                  className={`${inputBase} w-full sm:w-44 py-2 sm:py-1`}
                 />
               </div>
             </div>
@@ -493,21 +544,22 @@ function IngresosCard({ options, shownOption, onSelectOption, canSelect, costo, 
 }) {
   const ganancia = precio - costo
   const iva = Math.round(precio * ivaRate / 100)
+  const commitIva = (amount: number) => { if (precio > 0) onChangeIvaRate(Math.max(0, Number(((amount / precio) * 100).toFixed(6)))) }
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200">
         <div>
           <h2 className="text-sm font-semibold text-gray-700">Ingresos</h2>
           <p className="text-[11px] text-gray-400">Salen del precio cliente. Se cargan así en el evento al confirmar.</p>
         </div>
         {options.length > 0 && (
-          <div className="flex gap-1">
+          <div className="flex gap-1 flex-wrap">
             {options.map(o => (
               <button
                 key={o}
                 onClick={() => onSelectOption(o)}
                 disabled={!canSelect && o !== shownOption}
-                className={`px-2.5 py-1 text-xs rounded-md font-medium ${o === shownOption ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100 disabled:opacity-40'}`}
+                className={`px-3 sm:px-2.5 py-1.5 sm:py-1 text-xs rounded-md font-medium ${o === shownOption ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100 disabled:opacity-40'}`}
               >
                 Opción {o}
               </button>
@@ -515,7 +567,32 @@ function IngresosCard({ options, shownOption, onSelectOption, canSelect, costo, 
           </div>
         )}
       </div>
-      <table className="w-full text-sm">
+      {/* Mobile: el IVA se edita acá arriba porque en la tabla no entra el campo */}
+      {canSelect && (
+        <div className="md:hidden flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100">
+          <span className="text-sm text-gray-600">IVA</span>
+          <div className="w-44">
+            <TaxInput
+              amount={iva}
+              base={precio}
+              onCommit={commitIva}
+              inputClassName="w-full px-2 py-1.5 text-right text-sm border border-gray-200 bg-white rounded focus:outline-none focus:border-blue-400"
+            />
+          </div>
+        </div>
+      )}
+      <div className="md:hidden divide-y divide-gray-100">
+        {ingresoRows(precio, ivaRate).map(r => (
+          <div key={r.label} className="px-4 py-2.5 flex items-start justify-between gap-3 text-sm">
+            <span className="text-gray-800">{r.label}</span>
+            <div className="text-right">
+              <div className="font-medium whitespace-nowrap">{formatARS(r.neto + r.iva)}</div>
+              <div className="text-[11px] text-gray-400 whitespace-nowrap">Neto {formatARS(r.neto)} + IVA {formatARS(r.iva)}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <table className="hidden md:table w-full text-sm">
         <thead className="text-gray-500 text-xs uppercase">
           <tr>
             <th className="text-left px-4 py-2 font-medium">Concepto</th>
@@ -535,7 +612,7 @@ function IngresosCard({ options, shownOption, onSelectOption, canSelect, costo, 
                   <TaxInput
                     amount={iva}
                     base={precio}
-                    onCommit={(amount) => { if (precio > 0) onChangeIvaRate(Math.max(0, Number(((amount / precio) * 100).toFixed(6)))) }}
+                    onCommit={commitIva}
                     inputClassName="w-full px-2 py-1 text-right text-sm border border-gray-200 bg-white rounded focus:outline-none focus:border-blue-400"
                   />
                 ) : (
@@ -550,7 +627,7 @@ function IngresosCard({ options, shownOption, onSelectOption, canSelect, costo, 
           ))}
         </tbody>
       </table>
-      <div className="flex justify-end gap-8 px-4 py-3 border-t border-gray-200 text-sm">
+      <div className="flex flex-wrap justify-end gap-x-8 gap-y-1 px-4 py-3 border-t border-gray-200 text-sm">
         <span className="text-gray-500">Costo <b className="text-gray-800 font-medium">{formatARS(costo)}</b></span>
         <span className="text-gray-500">
           Ganancia <b className={`font-semibold ${ganancia >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatARS(ganancia)}</b>
@@ -619,6 +696,81 @@ function QuoteLineRow({ line, blocks, locked, onUpdate, onCommitCost, onDelete }
   )
 }
 
+function QuoteLineCard({ line, blocks, locked, onUpdate, onCommitCost, onDelete }: {
+  line: QuoteLine
+  blocks: QuoteBlock[]
+  locked: boolean
+  onUpdate: (data: Partial<QuoteLine>) => void
+  onCommitCost: (cost: number) => void
+  onDelete: () => void
+}) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const cost = Number(line.cost)
+  const price = Number(line.client_price)
+  const gain = price - cost
+  const pct = marginPct(cost, price)
+  const moneyInput = 'w-full px-2 py-1.5 text-right text-sm border border-gray-200 bg-white focus:border-blue-400 rounded focus:outline-none disabled:bg-transparent disabled:border-transparent'
+  const label = 'block text-[10px] uppercase text-gray-400 mb-0.5'
+
+  return (
+    <div className={`px-4 py-3 space-y-2.5 ${line.block_id ? '' : 'bg-gray-50/60'}`}>
+      <div className="flex items-start justify-between gap-3">
+        <p className={`font-medium ${line.block_id ? 'text-gray-900' : 'text-gray-500'}`}>{line.category_label}</p>
+        {!locked && (
+          confirmingDelete ? (
+            <div className="flex items-center gap-2 shrink-0 text-xs">
+              <button onClick={() => setConfirmingDelete(false)} className="px-2 py-1 text-gray-500">Cancelar</button>
+              <button onClick={onDelete} className="px-2 py-1 rounded bg-red-600 text-white font-medium">Eliminar</button>
+            </div>
+          ) : (
+            <button onClick={() => setConfirmingDelete(true)} className="p-1 -mr-1 text-gray-300 active:text-red-600" title="Eliminar línea">
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="min-w-0">
+          <span className={label}>Proveedor</span>
+          <ProviderSelect value={line.provider_id} onChange={(provider_id) => onUpdate({ provider_id })} />
+        </div>
+        <div className="min-w-0">
+          <span className={label}>Bloque</span>
+          <select
+            value={line.block_id ?? ''}
+            onChange={(e) => onUpdate({ block_id: e.target.value || null })}
+            className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-transparent"
+          >
+            <option value="">— Sin bloque (no se muestra)</option>
+            {blocks.map(b => <option key={b.id} value={b.id}>{blockLabel(b)}</option>)}
+          </select>
+        </div>
+        <div>
+          <span className={label}>Mi costo</span>
+          <CurrencyInput value={cost} onCommit={onCommitCost} className={moneyInput} />
+        </div>
+        <div>
+          <span className={label}>Ganancia %</span>
+          <PercentInput
+            value={pct}
+            disabled={cost <= 0}
+            onCommit={(p) => onUpdate({ client_price: Math.round(cost * (1 + p / 100)) })}
+            className={moneyInput}
+          />
+        </div>
+        <div>
+          <span className={label}>Ganancia $</span>
+          <CurrencyInput value={gain} onCommit={(g) => onUpdate({ client_price: cost + g })} className={`${moneyInput} ${gain < 0 ? 'text-red-600' : ''}`} />
+        </div>
+        <div>
+          <span className={label}>Precio cliente</span>
+          <CurrencyInput value={price} onCommit={(p) => onUpdate({ client_price: p })} className={`${moneyInput} font-medium`} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function BlockCard({ block, lines, maxOption, locked, isFirst, isLast, onUpdate, onMove, onDelete }: {
   block: QuoteBlock
   lines: QuoteLine[]
@@ -640,16 +792,16 @@ function BlockCard({ block, lines, maxOption, locked, isFirst, isLast, onUpdate,
         <select
           value={block.option_no ?? ''}
           onChange={(e) => onUpdate({ option_no: e.target.value ? Number(e.target.value) : null })}
-          className={`px-2 py-1 text-xs font-medium border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 ${block.option_no != null ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-600'}`}
+          className={`min-w-0 px-2 py-1.5 sm:py-1 text-xs font-medium border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 ${block.option_no != null ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-600'}`}
         >
           <option value="">Común a todas las opciones</option>
           {optionChoices.map(n => <option key={n} value={n}>Opción {n}{n > maxOption ? ' (nueva)' : ''}</option>)}
         </select>
         {!locked && (
-          <div className="flex items-center gap-2 text-gray-400">
-            <button onClick={() => onMove(-1)} disabled={isFirst} title="Subir" className="hover:text-gray-700 disabled:opacity-30"><ChevronUp className="w-4 h-4" /></button>
-            <button onClick={() => onMove(1)} disabled={isLast} title="Bajar" className="hover:text-gray-700 disabled:opacity-30"><ChevronDown className="w-4 h-4" /></button>
-            <button onClick={onDelete} title="Eliminar bloque" className="hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+          <div className="flex items-center gap-1 sm:gap-2 text-gray-400 shrink-0">
+            <button onClick={() => onMove(-1)} disabled={isFirst} title="Subir" className="p-1.5 sm:p-0 hover:text-gray-700 disabled:opacity-30"><ChevronUp className="w-4 h-4" /></button>
+            <button onClick={() => onMove(1)} disabled={isLast} title="Bajar" className="p-1.5 sm:p-0 hover:text-gray-700 disabled:opacity-30"><ChevronDown className="w-4 h-4" /></button>
+            <button onClick={onDelete} title="Eliminar bloque" className="p-1.5 sm:p-0 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
           </div>
         )}
       </div>
@@ -676,7 +828,7 @@ function BlockCard({ block, lines, maxOption, locked, isFirst, isLast, onUpdate,
       </div>
 
       <div className="flex items-center justify-between gap-4 flex-wrap pt-1 border-t border-gray-100">
-        <div className="flex items-center gap-4 flex-wrap pt-2">
+        <div className="flex items-center gap-x-4 gap-y-2 flex-wrap pt-2 w-full sm:w-auto">
           <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
             <input type="checkbox" checked={block.show_price} onChange={(e) => onUpdate({ show_price: e.target.checked })} className="rounded" />
             Mostrar precio
@@ -685,10 +837,10 @@ function BlockCard({ block, lines, maxOption, locked, isFirst, isLast, onUpdate,
             defaultValue={block.short_name ?? ''}
             onBlur={(e) => onUpdate({ short_name: e.target.value || null })}
             placeholder="Nombre en el resumen (ej: Finger Food)"
-            className="w-64 px-2 py-1 text-xs border border-gray-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+            className="w-full sm:w-64 px-2 py-1.5 sm:py-1 text-xs border border-gray-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
           />
         </div>
-        <div className="text-right pt-2">
+        <div className="text-right pt-2 ml-auto">
           <div className="text-sm font-semibold text-gray-800">{formatARS(price)} <span className="text-xs font-normal text-gray-400">+ IVA</span></div>
           <div className="text-[11px] text-gray-400">
             {lines.length ? lines.map(l => l.category_label).join(', ') : 'Sin filas de costo: asignalas desde la tabla de Costos'}
@@ -711,8 +863,8 @@ function ConfirmModal({ quote, options, loading, onClose, onConfirm }: {
   const ivaRate = Number(quote.iva_rate)
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 space-y-4">
+    <Modal onClose={onClose}>
+      <div className="space-y-4">
         <h3 className="text-base font-semibold text-gray-900">Confirmar y crear evento</h3>
 
         {options.length > 0 && (
@@ -743,7 +895,7 @@ function ConfirmModal({ quote, options, loading, onClose, onConfirm }: {
         </div>
         <p className="text-xs text-gray-500">Después de confirmar, la cotización queda cerrada.</p>
 
-        <div className="flex justify-end gap-2">
+        <ModalActions>
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
           <button
             onClick={() => onConfirm(option)}
@@ -753,9 +905,9 @@ function ConfirmModal({ quote, options, loading, onClose, onConfirm }: {
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
             Confirmar
           </button>
-        </div>
+        </ModalActions>
       </div>
-    </div>
+    </Modal>
   )
 }
 
